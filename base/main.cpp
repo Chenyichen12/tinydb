@@ -1,9 +1,59 @@
 
+#if true
+#include "file/store.h"
+#include <cassert>
+#include <cstdio>
+#include <cstring>
+#include <strings.h>
+#include <unistd.h>
+const char *PATH = "./test.db";
+#define COUNT 100000
+int main() {
+
+  db_t *db;
+  int i, rc;
+  char value[128];
+
+  // 创建数据库
+  unlink(PATH);
+  assert(db_create(PATH, DB_INT32KEY, sizeof(int)) == 0);
+
+  // 打开数据库
+  assert(db_open(&db, PATH) == 0);
+
+  // 插入操作
+  for (i = 0; i < COUNT; i++) {
+    sprintf(value, "%d", i);
+    assert(db_insert(db, &i, value, strlen(value)) == 1);
+  }
+  printf("insert key from %d to %d\n", 0, COUNT);
+
+  // 查询操作
+  i = 100;
+  bzero(value, sizeof(value));
+  rc = db_search(db, &i, value, 1000);
+  assert(rc >= 0);
+  printf("search key: %d value: %.*s\n", i, rc, value);
+
+  // 删除操作
+  for (i = 0; i < COUNT; i++) {
+    assert(db_delete(db, &i) == 1);
+  }
+  printf("delete key from %d to %d\n", 0, COUNT);
+
+  // 关闭数据库
+  db_close(db);
+
+  return 0;
+}
+#endif
+
+#if false
 #include "SQLParser.h"
 #include "SQLParserResult.h"
 #include "sql/Expr.h"
 #include <iostream>
-int main() {
+int main(){
   hsql::SQLParserResult result;
   hsql::SQLParser::parse(
       "SELECT ssss,ggggg FROM test, yyyyy WHERE ssss = 1 AND ggggg = 2;",
@@ -31,3 +81,5 @@ int main() {
   }
   return 0;
 }
+
+#endif
