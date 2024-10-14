@@ -7,7 +7,11 @@
 #include <strings.h>
 #include <unistd.h>
 const char *PATH = "./test.db";
-#define COUNT 100000
+#define COUNT 100
+
+void callbakc(void *key, void *value) {
+  printf("key: %d value: %s\n", *(int*)key, (char *)value);
+}
 int main() {
 
   db_t *db;
@@ -23,17 +27,20 @@ int main() {
 
   // 插入操作
   for (i = 0; i < COUNT; i++) {
-    sprintf(value, "%d", i);
+    sprintf(value, "%d", i + 100);
     assert(db_insert(db, &i, value, strlen(value)) == 1);
   }
   printf("insert key from %d to %d\n", 0, COUNT);
 
   // 查询操作
-  i = 100;
+  i = 10;
   bzero(value, sizeof(value));
   rc = db_search(db, &i, value, 1000);
   assert(rc >= 0);
   printf("search key: %d value: %.*s\n", i, rc, value);
+
+  // 遍历操作
+  db_check_all(db, callbakc, 1000);
 
   // 删除操作
   for (i = 0; i < COUNT; i++) {

@@ -56,3 +56,5 @@ int db_search(db_t* db, void* key, void *value, size_t value_size);
 */
 int db_delete(db_t* db, void* key);
 void db_close(db_t *db);
+
+int db_check_all(db_t *db, void (*callback)(void* key, void* value), size_t value_size);
