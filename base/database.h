@@ -1,9 +1,9 @@
 #pragma once
+#include <optional>
 #include <string>
 #include <vector>
 
 struct db_s;
-class DataBase;
 struct DataType {
   enum Type { INT32, INT64, FLOAT, STRING, BOOL, DATETIME };
   Type type;
@@ -31,12 +31,15 @@ struct Column {
   DataType data_type;
 };
 
+class TableBuilder;
+class DataBase;
 /**
  * @brief the table of db
  * won't check the type of the key and value
  */
 class Table {
-  friend class DataBase;
+  friend TableBuilder;
+  friend DataBase;
   std::vector<Column> columns_;
   // set by DataBase
   int primary_key_index;
@@ -73,18 +76,41 @@ public:
   std::string name() const { return table_name; }
 };
 
+class TableBuilder {
+  std::vector<Column> columns;
+  std::string table_name;
+  std::optional<int> primary_key_index;
+  std::optional<int> forgein_key_index;
+  db_s *db = nullptr;
+public:
+  /**
+   * @brief
+   * @return Table* result
+   * @throw std::runtime_error if no primary key or column size == 0 or name is
+   * ""
+   */
+  Table *build() const;
+  TableBuilder &addColumn(const std::wstring &name, const DataType &type);
+  TableBuilder &setPrimaryKey(const std::wstring &name);
+  TableBuilder &setForgeinKey(const std::wstring &name);
+  TableBuilder &setName(const std::string &name);
+  TableBuilder &setDb(db_s *db);
+  std::optional<DataType> getPrimaryKeyType() const;
+};
+
 class DataBase {
   std::vector<Table *> db_tables;
+  std::string db_path;
 
 public:
-/**
- * @brief Construct a new Data Base object
- * if exist open it, else create it
- * 
- * @param path 
- */
+  /**
+   * @brief Construct a new Data Base object
+   * if exist open it, else create it
+   *
+   * @param path
+   */
   DataBase(const std::string &path);
-
   DataBase(const DataBase &) = delete;
+
   ~DataBase();
 };

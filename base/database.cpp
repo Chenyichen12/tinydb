@@ -50,14 +50,15 @@ DataBase::DataBase(const std::string &path) {
   if (access(path.c_str(), F_OK) == 0) {
     // read the db
     std::cout << "opendb:" << path << std::endl;
+    db_path = path;
   } else {
-    // create the db
     int fd = open(path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0664);
     if (fd == -1) {
       throw std::runtime_error("create db failed");
     }
-
+    // create the db
     std::cout << "createdb:" << path << std::endl;
+    db_path = path;
   }
 }
 
@@ -66,4 +67,63 @@ DataBase::~DataBase() {
     delete t;
   }
   db_tables.clear();
+}
+
+TableBuilder &TableBuilder::addColumn(const std::wstring &name,
+                                      const DataType &type) {
+  columns.push_back(Column{name, type});
+  return *this;
+}
+
+TableBuilder &TableBuilder::setPrimaryKey(const std::wstring &name) {
+  for (size_t i = 0; i < columns.size(); i++) {
+    if (columns[i].column_name == name) {
+      primary_key_index = i;
+      return *this;
+    }
+  }
+  throw std::runtime_error("primary key not found");
+}
+
+TableBuilder &TableBuilder::setForgeinKey(const std::wstring &name) {
+  for (size_t i = 0; i < columns.size(); i++) {
+    if (columns[i].column_name == name) {
+      forgein_key_index = i;
+      return *this;
+    }
+  }
+  throw std::runtime_error("forgein key not found");
+}
+
+TableBuilder &TableBuilder::setName(const std::string &name) {
+  table_name = name;
+  return *this;
+}
+
+std::optional<DataType> TableBuilder::getPrimaryKeyType() const {
+  if (primary_key_index.has_value()) {
+    return columns[primary_key_index.value()].data_type;
+  }
+  return std::nullopt;
+}
+
+Table *TableBuilder::build() const {
+  if (!primary_key_index.has_value() || columns.size() == 0 ||
+      table_name == "" || db == nullptr) {
+    throw std::runtime_error(
+        "no primary key or column size == 0 or name is \"\"");
+  }
+  std::vector<Column> cs = columns;
+  auto t = new Table(cs, db);
+  t->primary_key_index = primary_key_index.value();
+  t->table_name = table_name;
+  if (this->forgein_key_index.has_value()) {
+    t->forgein_key_index = forgein_key_index.value();
+  }
+  return t;
+}
+
+TableBuilder &TableBuilder::setDb(db_s *db) {
+  this->db = db;
+  return *this;
 }
