@@ -1,5 +1,5 @@
 
-#if true
+#if false
 #include "file/store.h"
 #include <cassert>
 #include <cstdio>
@@ -86,6 +86,27 @@ int main(){
     const auto& where = sel->whereClause;
     std::cout<<(where->opType == hsql::OperatorType::kOpAnd)<<std::endl;
   }
+  return 0;
+}
+
+#endif
+
+#if true
+#include "database.h"
+#include <filesystem>
+#include <iostream>
+#include <unistd.h>
+const char *f = __FILE__;
+int main() {
+  std::filesystem::path filepath(f);
+  auto dbPath = filepath.parent_path().parent_path() / "build" / "test.db";
+  // unlink(dbPath.c_str());
+  try {
+    DataBase db(dbPath);
+  } catch (std::exception &e) {
+    std::cout << e.what() << std::endl;
+  }
+
   return 0;
 }
 

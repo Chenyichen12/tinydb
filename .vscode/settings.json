@@ -1,3 +1,4 @@
 {
-    "clangd.path": "clangd"
+    "clangd.path": "clangd",
+    "clangd.arguments": ["--header-insertion=never","--clang-tidy"]
 }
