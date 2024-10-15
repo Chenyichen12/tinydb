@@ -98,7 +98,7 @@ int main(){
 #include <iostream>
 #include <unistd.h>
 
-#define READ false
+#define READ true
 const char *f = __FILE__;
 int main() {
   std::filesystem::path filepath(f);
@@ -123,6 +123,17 @@ int main() {
 
     db.saveConfig();
 
+    res = db.insertValue("student", [](RowBuilder *b) {
+      try {
+        b->addValue((int64_t)(2222));
+        b->addValue(std::string("zhangsan"));
+        b->addValue(18);
+        b->addValue(true);
+      } catch (std::exception &e) {
+        std::cout << e.what() << std::endl;
+      }
+    });
+    assert(res == 0);
   } catch (std::exception &e) {
     std::cout << e.what() << std::endl;
   }

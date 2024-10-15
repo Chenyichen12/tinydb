@@ -121,6 +121,9 @@ public:
   RowBuilder &addValue(const std::wstring &value);
   RowBuilder &addValue(const std::string &value);
   RowBuilder &addValue(bool value);
+  bool isAllSet() const;
+  size_t valueOffset(int index) const;
+  const char *value() const { return comp_value; }
   ~RowBuilder();
 };
 
@@ -154,6 +157,20 @@ public:
    * 5 if db name is already exist
    */
   int addTable(const std::function<void(TableBuilder *b)> &callback);
+
+  /**
+   * @brief insert the value
+   *
+   * @param table_name which table
+   * @param callback insert the value in this callback
+   * @return int error code
+   * 0 if success
+   * 1 if table not found
+   * 2 if the value is not complete
+   * 3 if insert failed
+   */
+  int insertValue(const std::string &table_name,
+                  const std::function<void(RowBuilder *r)> &callback);
   void saveConfig() const;
 
   ~DataBase();

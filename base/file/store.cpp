@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <errno.h> // for E2BIG
 #include <fcntl.h> // for open(), O_CREAT, O_RDWR, O_TRUNC
+#include <memory>
 #include <stack>
 #include <stddef.h>   // for size_t
 #include <stdint.h>   // for int32_t
@@ -870,17 +871,21 @@ int db_check_all(db_t *db, void (*callback)(void *key, void *value),
     offsetStack.pop();
     node_seek(db, node, offset);
     for (int i = 0; i < node->num; i++) {
-      btree_node *nodeval = (btree_node *)(malloc(DB_BLOCK_SIZE));
-      void* key_ptr = malloc(db->key_size);
+      auto btree_node_u = std::make_unique<char[]>(DB_BLOCK_SIZE);
+      btree_node *nodeval = (btree_node *)btree_node_u.get();
+
+      auto ket_ptr_u = std::make_unique<char[]>(db->key_size);
+      void *key_ptr = ket_ptr_u.get();
       memcpy(key_ptr, btree_key_ptr(db, node, i)->key, db->key_size);
 
       auto valoffset = btree_key_ptr(db, node, i)->value;
-      node_seek(db, nodeval, DB_HEAD_SIZE + ((valoffset - DB_HEAD_SIZE) & ~(DB_BLOCK_SIZE - 1)));
+      node_seek(db, nodeval,
+                DB_HEAD_SIZE +
+                    ((valoffset - DB_HEAD_SIZE) & ~(DB_BLOCK_SIZE - 1)));
       btree_value *pval = btree_value_ptr(nodeval, valoffset - nodeval->self);
       callback(key_ptr, pval->value);
 
-
-      if(node->leaf == 0){
+      if (node->leaf == 0) {
         offsetStack.push(btree_key_ptr(db, node, i)->child);
       }
     }

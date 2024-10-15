@@ -78,9 +78,9 @@ DataBase::DataBase(const std::string &path) {
 }
 
 void DataBase::readConfig() {
-  char *buf = (char *)malloc(4096);
-  pread(db_fd, buf, 4096, 0);
-  nlohmann::json j = nlohmann::json::parse(buf);
+  auto buf = std::make_unique<char[]>(4096);
+  pread(db_fd, buf.get(), 4096, 0);
+  nlohmann::json j = nlohmann::json::parse(buf.get());
 
   auto array = j["tables"].get<std::vector<nlohmann::json>>();
   for (const auto &t : array) {
@@ -217,11 +217,47 @@ void DataBase::saveConfig() const {
   if (lseek(db_fd, 0, SEEK_SET) == -1) {
     throw std::runtime_error("lseek failed");
   }
-
   auto string = nlohmann::to_string(j);
   if (write(db_fd, string.c_str(), string.size()) == -1) {
     throw std::runtime_error("write failed");
   }
+}
+
+int DataBase::insertValue(const std::string &table_name,
+                          const std::function<void(RowBuilder *r)> &callback) {
+  Table *target_table = nullptr;
+  for (auto t : db_tables) {
+    if (t->name() == table_name) {
+      target_table = t;
+      break;
+    }
+  }
+
+  if (target_table == nullptr) {
+    return 1;
+  }
+
+  auto builder = std::make_unique<RowBuilder>(target_table->columns());
+  callback(builder.get());
+  if (!builder->isAllSet()) {
+    return 2;
+  }
+
+  auto valsize = target_table->entrySize();
+  auto v = std::make_unique<char[]>(valsize);
+  memcpy(v.get(), builder->value(), valsize);
+
+  auto keyindex = target_table->primaryKeyIndex();
+  auto keysize = target_table->keyType().size;
+  auto key_valueoffset = builder->valueOffset(keyindex);
+  auto keyval = std::make_unique<char[]>(keysize);
+  memcpy(keyval.get(), v.get() + key_valueoffset, keysize);
+  auto res = target_table->insertValue(keyval.get(), v.get(), target_table->entrySize());
+  if(res == 1){
+    return 0;
+  }
+
+  return 3;
 }
 
 TableBuilder &TableBuilder::addColumn(const std::string &name,
@@ -373,3 +409,13 @@ RowBuilder &RowBuilder::addValue(bool value) {
 }
 
 RowBuilder::~RowBuilder() { delete[] comp_value; }
+
+bool RowBuilder::isAllSet() const { return offset == columnsDefination.size(); }
+
+size_t RowBuilder::valueOffset(int index) const {
+  auto byteoffset = 0;
+  for (size_t i = 0; i < index; i++) {
+    byteoffset += columnsDefination[i].data_type.size;
+  }
+  return byteoffset;
+}
