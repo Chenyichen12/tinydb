@@ -24,7 +24,7 @@ DataType Table::keyType() const {
   return columns_[primary_key_index].data_type;
 }
 
-DataType Table::valueType(const std::wstring &column_name) const {
+DataType Table::valueType(const std::string &column_name) const {
   for (auto &c : columns_) {
     if (c.column_name == column_name) {
       return c.data_type;
@@ -55,6 +55,14 @@ DataBase::DataBase(const std::string &path) {
     // read the db
     std::cout << "opendb:" << path << std::endl;
     db_path = path;
+    int fd = open(path.c_str(), O_RDWR);
+
+    if (fd == -1) {
+      throw std::runtime_error("open db failed");
+    }
+    db_fd = fd;
+
+    readConfig();
   } else {
     int fd = open(path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0664);
     if (fd == -1) {
@@ -66,6 +74,56 @@ DataBase::DataBase(const std::string &path) {
     db_fd = fd;
     db_path = path;
     saveConfig();
+  }
+}
+
+void DataBase::readConfig() {
+  char *buf = (char *)malloc(1024);
+  pread(db_fd, buf, 1024, 0);
+  nlohmann::json j = nlohmann::json::parse(buf);
+
+  auto array = j["tables"].get<std::vector<nlohmann::json>>();
+  for (const auto &t : array) {
+
+    auto builder = std::make_unique<TableBuilder>();
+    builder->setName(t["name"]);
+    builder->setPrimaryKey(t["primary_key_index"].get<int>());
+    int forgein_key_index = t["forgein_key_index"];
+    if (forgein_key_index != -1) {
+      builder->setForgeinKey(t["forgein_key_index"].get<int>());
+    }
+
+    auto columns = t["columns"].get<std::vector<nlohmann::json>>();
+    for (const auto &c : columns) {
+      int type = c["type"];
+      switch (type) {
+      case 0:
+        builder->addColumn(c["name"], DataType::Int32());
+        break;
+      case 1:
+        builder->addColumn(c["name"], DataType::Int64());
+        break;
+      case 2:
+        builder->addColumn(c["name"], DataType::Float());
+        break;
+      case 3:
+        builder->addColumn(c["name"], DataType::String(c["size"]));
+        break;
+      case 4:
+        builder->addColumn(c["name"], DataType::Bool());
+        break;
+      default:
+        throw std::runtime_error("unknow type");
+      }
+    }
+
+    std::filesystem::path fs(db_path);
+    auto tablePath = fs.parent_path() / (builder->name() + ".db");
+    db_s *table = nullptr;
+    db_open(&table, tablePath.c_str());
+    builder->setDb(table);
+    auto table_ = builder->build();
+    db_tables.push_back(table_);
   }
 }
 
@@ -166,13 +224,22 @@ void DataBase::saveConfig() const {
   }
 }
 
-TableBuilder &TableBuilder::addColumn(const std::wstring &name,
+TableBuilder &TableBuilder::addColumn(const std::string &name,
                                       const DataType &type) {
   columns.push_back(Column{name, type});
   return *this;
 }
 
-TableBuilder &TableBuilder::setPrimaryKey(const std::wstring &name) {
+TableBuilder &TableBuilder::setPrimaryKey(int index) {
+  primary_key_index = index;
+  return *this;
+}
+TableBuilder &TableBuilder::setForgeinKey(int index) {
+  forgein_key_index = index;
+  return *this;
+}
+
+TableBuilder &TableBuilder::setPrimaryKey(const std::string &name) {
   for (size_t i = 0; i < columns.size(); i++) {
     if (columns[i].column_name == name) {
       primary_key_index = i;
@@ -182,7 +249,7 @@ TableBuilder &TableBuilder::setPrimaryKey(const std::wstring &name) {
   throw std::runtime_error("primary key not found");
 }
 
-TableBuilder &TableBuilder::setForgeinKey(const std::wstring &name) {
+TableBuilder &TableBuilder::setForgeinKey(const std::string &name) {
   for (size_t i = 0; i < columns.size(); i++) {
     if (columns[i].column_name == name) {
       forgein_key_index = i;

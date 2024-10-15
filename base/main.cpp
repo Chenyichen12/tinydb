@@ -93,31 +93,46 @@ int main(){
 
 #if true
 #include "database.h"
+#include <cassert>
 #include <filesystem>
 #include <iostream>
 #include <unistd.h>
+
+#define READ false
 const char *f = __FILE__;
 int main() {
   std::filesystem::path filepath(f);
   auto dbPath = filepath.parent_path().parent_path() / "build" / "test.db";
-  auto testDbPath = filepath.parent_path().parent_path() / "build" / "student.db";
+  auto testDbPath =
+      filepath.parent_path().parent_path() / "build" / "student.db";
+#if READ
   unlink(dbPath.c_str());
   unlink(testDbPath.c_str());
+
   try {
     DataBase db(dbPath);
-    db.addTable([](TableBuilder* b){
+    auto res = db.addTable([](TableBuilder *b) {
       b->setName("student");
-      b->addColumn(L"id", DataType::Int64());
-      b->addColumn(L"name", DataType::String(128));
-      b->addColumn(L"age", DataType::Int32());
-      b->addColumn(L"sex", DataType::Bool());
-      b->setPrimaryKey(L"id");
+      b->addColumn("id", DataType::Int64());
+      b->addColumn("name", DataType::String(128));
+      b->addColumn("age", DataType::Int32());
+      b->addColumn("sex", DataType::Bool());
+      b->setPrimaryKey("id");
     });
+    assert(res == 0);
+
     db.saveConfig();
 
   } catch (std::exception &e) {
     std::cout << e.what() << std::endl;
   }
+#else
+  try {
+    DataBase db(dbPath);
+  } catch (std::exception &e) {
+    std::cout << e.what() << std::endl;
+  }
+#endif
 
   return 0;
 }

@@ -28,7 +28,7 @@ private:
 };
 
 struct Column {
-  std::wstring column_name;
+  std::string column_name;
   DataType data_type;
 };
 
@@ -71,7 +71,7 @@ public:
   int deleteValue(void *primary_key) const;
 
   DataType keyType() const;
-  DataType valueType(const std::wstring &column_name) const;
+  DataType valueType(const std::string &column_name) const;
   const std::vector<Column> &columns() const { return columns_; }
   int primaryKeyIndex() const { return primary_key_index; }
   int forgeinKeyIndex() const { return forgein_key_index; }
@@ -94,9 +94,11 @@ public:
    * ""
    */
   Table *build() const;
-  TableBuilder &addColumn(const std::wstring &name, const DataType &type);
-  TableBuilder &setPrimaryKey(const std::wstring &name);
-  TableBuilder &setForgeinKey(const std::wstring &name);
+  TableBuilder &addColumn(const std::string &name, const DataType &type);
+  TableBuilder &setPrimaryKey(const std::string &name);
+  TableBuilder &setForgeinKey(const std::string &name);
+  TableBuilder &setPrimaryKey(int index);
+  TableBuilder &setForgeinKey(int index);
   TableBuilder &setName(const std::string &name);
   TableBuilder &setDb(db_s *db);
   std::optional<DataType> getPrimaryKeyType() const;
@@ -130,5 +132,10 @@ public:
    */
   int addTable(const std::function<void(TableBuilder *b)> &callback);
   void saveConfig() const;
+  /**
+   * @brief 
+   * may throw std::runtime_error if read failed
+   */
+  void readConfig();
   ~DataBase();
 };
