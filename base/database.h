@@ -105,11 +105,34 @@ public:
   std::string name() const { return table_name; }
 };
 
+class RowBuilder {
+  const std::vector<Column> &columnsDefination;
+  // may be need to use a two demensional vector
+  char *comp_value;
+  size_t offset = 0;
+  bool checkType(DataType::Type type) const;
+  void doMemoryCopy(const void *value, size_t size);
+public:
+  RowBuilder(const std::vector<Column> &columnsDefination);
+  // sequence add
+  RowBuilder &addValue(int32_t value);
+  RowBuilder &addValue(int64_t value);
+  RowBuilder &addValue(float value);
+  RowBuilder &addValue(const std::wstring &value);
+  RowBuilder &addValue(const std::string &value);
+  RowBuilder &addValue(bool value);
+  ~RowBuilder();
+};
+
 class DataBase {
   std::vector<Table *> db_tables;
   std::string db_path;
   int db_fd = -1;
-
+  /**
+   * @brief
+   * may throw std::runtime_error if read failed
+   */
+  void readConfig();
 public:
   /**
    * @brief Construct a new Data Base object
@@ -132,10 +155,6 @@ public:
    */
   int addTable(const std::function<void(TableBuilder *b)> &callback);
   void saveConfig() const;
-  /**
-   * @brief 
-   * may throw std::runtime_error if read failed
-   */
-  void readConfig();
+
   ~DataBase();
 };

@@ -78,8 +78,8 @@ DataBase::DataBase(const std::string &path) {
 }
 
 void DataBase::readConfig() {
-  char *buf = (char *)malloc(1024);
-  pread(db_fd, buf, 1024, 0);
+  char *buf = (char *)malloc(4096);
+  pread(db_fd, buf, 4096, 0);
   nlohmann::json j = nlohmann::json::parse(buf);
 
   auto array = j["tables"].get<std::vector<nlohmann::json>>();
@@ -291,3 +291,85 @@ TableBuilder &TableBuilder::setDb(db_s *db) {
   this->db = db;
   return *this;
 }
+
+RowBuilder::RowBuilder(const std::vector<Column> &columnsDefination)
+    : columnsDefination(columnsDefination) {
+  auto totalSize = 0;
+  for (auto &c : columnsDefination) {
+    totalSize += c.data_type.size;
+  }
+  comp_value = new char[totalSize];
+}
+void RowBuilder::doMemoryCopy(const void *value, size_t size) {
+  auto byteoffset = 0;
+  for (size_t i = 0; i < offset; i++) {
+    byteoffset += columnsDefination[i].data_type.size;
+  }
+  memcpy(comp_value + byteoffset, value, size);
+}
+bool RowBuilder::checkType(DataType::Type type) const {
+  auto &c = columnsDefination[offset];
+  return c.data_type.type == type;
+}
+RowBuilder &RowBuilder::addValue(int32_t value) {
+  // check
+  auto res = checkType(DataType::INT32);
+  if (!res) {
+    throw std::runtime_error("type not match");
+  }
+
+  doMemoryCopy(&value, sizeof(int32_t));
+  offset++;
+  return *this;
+}
+RowBuilder &RowBuilder::addValue(int64_t value) {
+  // check
+  auto res = checkType(DataType::INT64);
+  if (!res) {
+    throw std::runtime_error("type not match");
+  }
+  doMemoryCopy(&value, sizeof(int64_t));
+  offset++;
+  return *this;
+}
+RowBuilder &RowBuilder::addValue(float value) {
+  auto res = checkType(DataType::FLOAT);
+  if (!res) {
+    throw std::runtime_error("type not match");
+  }
+  doMemoryCopy(&value, sizeof(float));
+  offset++;
+  return *this;
+}
+RowBuilder &RowBuilder::addValue(const std::wstring &value) {
+  auto res = checkType(DataType::STRING);
+  if (!res) {
+    throw std::runtime_error("type not match");
+  }
+  auto stringsize = columnsDefination[offset].data_type.size;
+  size_t size_in_bytes = value.size() * sizeof(wchar_t);
+  if (size_in_bytes > stringsize) {
+    throw std::runtime_error("string size too large");
+  }
+
+  doMemoryCopy(value.c_str(), size_in_bytes);
+  offset++;
+
+  return *this;
+}
+RowBuilder &RowBuilder::addValue(const std::string &value) {
+  auto converter = std::wstring_convert<std::codecvt_utf8<wchar_t>>();
+  auto wstr = converter.from_bytes(value);
+  return addValue(wstr);
+}
+RowBuilder &RowBuilder::addValue(bool value) {
+  auto res = checkType(DataType::BOOL);
+  if (!res) {
+    throw std::runtime_error("type not match");
+  }
+  doMemoryCopy(&value, sizeof(bool));
+  offset++;
+  return *this;
+}
+
+RowBuilder::~RowBuilder() { delete[] comp_value; }
