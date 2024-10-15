@@ -9,6 +9,7 @@
                 {
                     name: "cloumn1"
                     type: 0
+                    size: 2
                 }
             ]
         }

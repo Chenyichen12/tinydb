@@ -6,4 +6,4 @@ file/store.h
 database.h
 database.cpp
 )
-target_link_libraries(basedb PRIVATE sqlparser)
+target_link_libraries(basedb PRIVATE sqlparser nlohmann_json::nlohmann_json)

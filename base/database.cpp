@@ -4,8 +4,10 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <unistd.h>
+
 Table::Table(const std::vector<Column> &cs, db_t *db) : columns_(cs), db(db) {}
 
 Table::~Table() {
@@ -63,6 +65,7 @@ DataBase::DataBase(const std::string &path) {
 
     db_fd = fd;
     db_path = path;
+    saveConfig();
   }
 }
 
@@ -115,16 +118,52 @@ int DataBase::addTable(const std::function<void(TableBuilder *b)> &callback) {
   if (res == -1) {
     return 4;
   }
+  db_open(&table, tablePath.c_str());
   b->setDb(table);
-
-  auto table_ = b->build();
-  db_tables.push_back(table_);
+  try {
+    auto table_ = b->build();
+    db_tables.push_back(table_);
+  } catch (std::exception &e) {
+    db_close(table);
+    unlink(tablePath.c_str());
+    throw e;
+  }
 
   return 0;
 }
 
 void DataBase::saveConfig() const {
-  
+  nlohmann::json j;
+  j["db_name"] = db_path;
+  j["tables"] = nlohmann::json::array();
+  for (const auto &t : db_tables) {
+    nlohmann::json table;
+    table["name"] = t->name();
+    table["primary_key_index"] = t->primaryKeyIndex();
+    table["forgein_key_index"] = t->forgeinKeyIndex();
+    table["columns"] = nlohmann::json::array();
+    for (const auto &c : t->columns()) {
+      nlohmann::json column;
+      column["name"] = c.column_name;
+      column["type"] = c.data_type.type;
+      column["size"] = c.data_type.size;
+      table["columns"].push_back(column);
+    }
+    j["tables"].push_back(table);
+  }
+
+  // 清除原有的配置文件
+  if (ftruncate(db_fd, 0) == -1) {
+    throw std::runtime_error("ftruncate failed");
+  }
+  if (lseek(db_fd, 0, SEEK_SET) == -1) {
+    throw std::runtime_error("lseek failed");
+  }
+
+  auto string = nlohmann::to_string(j);
+  if (write(db_fd, string.c_str(), string.size()) == -1) {
+    throw std::runtime_error("write failed");
+  }
 }
 
 TableBuilder &TableBuilder::addColumn(const std::wstring &name,

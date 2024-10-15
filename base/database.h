@@ -44,7 +44,7 @@ class Table {
   std::vector<Column> columns_;
   // set by DataBase
   int primary_key_index;
-  int forgein_key_index;
+  int forgein_key_index = -1;
 
   db_s *db;
   std::string table_name;
@@ -74,6 +74,7 @@ public:
   DataType valueType(const std::wstring &column_name) const;
   const std::vector<Column> &columns() const { return columns_; }
   int primaryKeyIndex() const { return primary_key_index; }
+  int forgeinKeyIndex() const { return forgein_key_index; }
   size_t entrySize() const;
   std::string name() const { return table_name; }
 };

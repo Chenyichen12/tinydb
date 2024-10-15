@@ -100,9 +100,21 @@ const char *f = __FILE__;
 int main() {
   std::filesystem::path filepath(f);
   auto dbPath = filepath.parent_path().parent_path() / "build" / "test.db";
-  // unlink(dbPath.c_str());
+  auto testDbPath = filepath.parent_path().parent_path() / "build" / "student.db";
+  unlink(dbPath.c_str());
+  unlink(testDbPath.c_str());
   try {
     DataBase db(dbPath);
+    db.addTable([](TableBuilder* b){
+      b->setName("student");
+      b->addColumn(L"id", DataType::Int64());
+      b->addColumn(L"name", DataType::String(128));
+      b->addColumn(L"age", DataType::Int32());
+      b->addColumn(L"sex", DataType::Bool());
+      b->setPrimaryKey(L"id");
+    });
+    db.saveConfig();
+
   } catch (std::exception &e) {
     std::cout << e.what() << std::endl;
   }
