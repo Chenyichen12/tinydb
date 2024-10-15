@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -72,6 +73,7 @@ public:
   DataType keyType() const;
   DataType valueType(const std::wstring &column_name) const;
   const std::vector<Column> &columns() const { return columns_; }
+  int primaryKeyIndex() const { return primary_key_index; }
   size_t entrySize() const;
   std::string name() const { return table_name; }
 };
@@ -82,6 +84,7 @@ class TableBuilder {
   std::optional<int> primary_key_index;
   std::optional<int> forgein_key_index;
   db_s *db = nullptr;
+
 public:
   /**
    * @brief
@@ -96,11 +99,13 @@ public:
   TableBuilder &setName(const std::string &name);
   TableBuilder &setDb(db_s *db);
   std::optional<DataType> getPrimaryKeyType() const;
+  std::string name() const { return table_name; }
 };
 
 class DataBase {
   std::vector<Table *> db_tables;
   std::string db_path;
+  int db_fd = -1;
 
 public:
   /**
@@ -111,6 +116,18 @@ public:
    */
   DataBase(const std::string &path);
   DataBase(const DataBase &) = delete;
-
+  /**
+   * @brief
+   *
+   * @param callback add the table columns and keys to table
+   * @return int error code, 0 if success
+   * 1 if no primary key
+   * 2 if no name
+   * 3 if no key is not valid type
+   * 4 if db is not set
+   * 5 if db name is already exist
+   */
+  int addTable(const std::function<void(TableBuilder *b)> &callback);
+  void saveConfig() const;
   ~DataBase();
 };

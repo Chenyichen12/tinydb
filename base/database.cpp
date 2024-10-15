@@ -1,7 +1,9 @@
 #include "database.h"
 #include "file/store.h"
 #include <fcntl.h> // for open(), O_CREAT, O_RDWR, O_TRUNC
+#include <filesystem>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <unistd.h>
 Table::Table(const std::vector<Column> &cs, db_t *db) : columns_(cs), db(db) {}
@@ -58,6 +60,8 @@ DataBase::DataBase(const std::string &path) {
     }
     // create the db
     std::cout << "createdb:" << path << std::endl;
+
+    db_fd = fd;
     db_path = path;
   }
 }
@@ -67,6 +71,60 @@ DataBase::~DataBase() {
     delete t;
   }
   db_tables.clear();
+  if (db_fd != -1) {
+    close(db_fd);
+  }
+}
+
+int DataBase::addTable(const std::function<void(TableBuilder *b)> &callback) {
+  auto b = std::make_unique<TableBuilder>();
+  callback(b.get());
+  if (!b->getPrimaryKeyType()) {
+    return 1;
+  }
+  if (b->name() == "") {
+    return 2;
+  }
+  for (const auto &t : this->db_tables) {
+    if (t->name() == b->name()) {
+      return 5;
+    }
+  }
+
+  db_s *table = nullptr;
+  std::filesystem::path fs(db_path);
+  auto tablePath = fs.parent_path() / (b->name() + ".db");
+  KEY_TYPE t;
+  auto type = b->getPrimaryKeyType().value().type;
+  switch (type) {
+  case DataType::Type::INT32:
+    t = DB_INT32KEY;
+    break;
+  case DataType::Type::INT64:
+    t = DB_INT64KEY;
+    break;
+  case DataType::Type::STRING:
+    t = DB_STRINGKEY;
+    break;
+  default:
+    return 3;
+  }
+
+  auto res =
+      db_create(tablePath.c_str(), t, b->getPrimaryKeyType().value().size);
+  if (res == -1) {
+    return 4;
+  }
+  b->setDb(table);
+
+  auto table_ = b->build();
+  db_tables.push_back(table_);
+
+  return 0;
+}
+
+void DataBase::saveConfig() const {
+  
 }
 
 TableBuilder &TableBuilder::addColumn(const std::wstring &name,
