@@ -126,14 +126,23 @@ int main() {
     res = db.insertValue("student", [](RowBuilder *b) {
       try {
         b->addValue((int64_t)(2222));
-        b->addValue(std::string("zhangsan"));
+        b->addValue(std::string("yichen"));
         b->addValue(18);
-        b->addValue(true);
+        b->addValue(false);
       } catch (std::exception &e) {
         std::cout << e.what() << std::endl;
       }
     });
     assert(res == 0);
+
+    res = db.getValue("student", [](RowReader *reader) {
+      auto id = reader->readInt64(0);
+      auto name = reader->readString(1);
+      auto age = reader->readInt32(2);
+      bool sex = reader->readBool(3);
+      std::wcout << "id: " << id << " name: " << name << " age: " << age
+                 << " sex:" << sex << std::endl;
+    });
   } catch (std::exception &e) {
     std::cout << e.what() << std::endl;
   }

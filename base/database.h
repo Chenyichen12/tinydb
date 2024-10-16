@@ -67,6 +67,8 @@ public:
    * @return int 0 if success, -1 if error
    */
   int getValue(void *primary_key, void *value, size_t buffer_size = 1000) const;
+  int getValue(
+      const std::function<void(void *key, void *value)> &callback) const;
   int insertValue(void *primary_key, void *value, size_t value_size) const;
   int deleteValue(void *primary_key) const;
 
@@ -112,6 +114,7 @@ class RowBuilder {
   size_t offset = 0;
   bool checkType(DataType::Type type) const;
   void doMemoryCopy(const void *value, size_t size);
+
 public:
   RowBuilder(const std::vector<Column> &columnsDefination);
   // sequence add
@@ -127,6 +130,27 @@ public:
   ~RowBuilder();
 };
 
+class RowReader {
+  const std::vector<Column> &columnsDefination;
+  const char *value;
+  void read(size_t index, void *buffer, size_t size) const;
+
+public:
+  RowReader(const std::vector<Column> &columnsDefination, const char *value);
+
+  /**
+   * @brief if the type is not match, throw the error
+   * @param index column index
+   * @return data value
+   */
+  std::wstring readString(int index) const;
+  int32_t readInt32(int index) const;
+  int64_t readInt64(int index) const;
+  float readFloat(int index) const;
+  bool readBool(int index) const;
+  ~RowReader();
+};
+
 class DataBase {
   std::vector<Table *> db_tables;
   std::string db_path;
@@ -136,6 +160,7 @@ class DataBase {
    * may throw std::runtime_error if read failed
    */
   void readConfig();
+
 public:
   /**
    * @brief Construct a new Data Base object
@@ -171,6 +196,9 @@ public:
    */
   int insertValue(const std::string &table_name,
                   const std::function<void(RowBuilder *r)> &callback);
+
+  int getValue(const std::string &table_name,
+               const std::function<void(RowReader* reader)> &callback) const;
   void saveConfig() const;
 
   ~DataBase();

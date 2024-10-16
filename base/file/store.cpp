@@ -859,8 +859,7 @@ int db_delete(db_t *db, void *key) {
   head_flush(db);
   return 1;
 }
-int db_check_all(db_t *db, void (*callback)(void *key, void *value),
-                 size_t value_size) {
+int db_check_all(db_t *db, const std::function<void(void* key,void* value)>& callback) {
   btree_node *node =
       (btree_node *)((char *)db + DB_HEAD_SIZE + DB_BLOCK_SIZE * 0);
   off_t offset = DB_HEAD_SIZE;

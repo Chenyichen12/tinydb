@@ -20,6 +20,12 @@ int Table::getValue(void *primary_key, void *value, size_t buffer_size) const {
   return err;
 }
 
+int Table::getValue(
+    const std::function<void(void *key, void *value)> &callback) const {
+  auto err = db_check_all(db, callback);
+  return err;
+}
+
 DataType Table::keyType() const {
   return columns_[primary_key_index].data_type;
 }
@@ -252,12 +258,42 @@ int DataBase::insertValue(const std::string &table_name,
   auto key_valueoffset = builder->valueOffset(keyindex);
   auto keyval = std::make_unique<char[]>(keysize);
   memcpy(keyval.get(), v.get() + key_valueoffset, keysize);
-  auto res = target_table->insertValue(keyval.get(), v.get(), target_table->entrySize());
-  if(res == 1){
+  auto res = target_table->insertValue(keyval.get(), v.get(),
+                                       target_table->entrySize());
+  if (res == 1) {
     return 0;
   }
 
   return 3;
+}
+
+int DataBase::getValue(
+    const std::string &table_name,
+    const std::function<void(RowReader *reader)> &callback) const {
+  Table *target_table = nullptr;
+  for (auto t : db_tables) {
+    if (t->name() == table_name) {
+      target_table = t;
+      break;
+    }
+  }
+  if (target_table == nullptr) {
+    return 1;
+  }
+
+  auto valsize = target_table->entrySize();
+  auto v = std::make_unique<char[]>(valsize);
+  auto reader = std::make_unique<RowReader>(target_table->columns(), v.get());
+
+  auto res = target_table->getValue([&](void *key, void *value) {
+    memcpy(v.get(), value, valsize);
+    callback(reader.get());
+  });
+
+  if (res == 0) {
+    return 0;
+  }
+  return 2;
 }
 
 TableBuilder &TableBuilder::addColumn(const std::string &name,
@@ -419,3 +455,66 @@ size_t RowBuilder::valueOffset(int index) const {
   }
   return byteoffset;
 }
+
+RowReader::RowReader(const std::vector<Column> &columnsDefination,
+                     const char *value)
+    : columnsDefination(columnsDefination), value(value) {}
+
+void RowReader::read(size_t index, void *buffer, size_t size) const {
+  auto byteoffset = 0;
+  for (size_t i = 0; i < index; i++) {
+    byteoffset += columnsDefination[i].data_type.size;
+  }
+  memcpy(buffer, value + byteoffset, size);
+}
+
+std::wstring RowReader::readString(int index) const {
+  auto &c = columnsDefination[index];
+  if (c.data_type.type != DataType::STRING) {
+    throw std::runtime_error("type not match");
+  }
+  auto stringsize = c.data_type.size;
+  auto buffer = new wchar_t[stringsize];
+  read(index, buffer, stringsize);
+  std::wstring wstr(buffer);
+  delete[] buffer;
+  return wstr;
+}
+int32_t RowReader::readInt32(int index) const {
+  auto &c = columnsDefination[index];
+  if (c.data_type.type != DataType::INT32) {
+    throw std::runtime_error("type not match");
+  }
+  int32_t value;
+  read(index, &value, sizeof(int32_t));
+  return value;
+}
+int64_t RowReader::readInt64(int index) const {
+  auto &c = columnsDefination[index];
+  if (c.data_type.type != DataType::INT64) {
+    throw std::runtime_error("type not match");
+  }
+  int64_t value;
+  read(index, &value, sizeof(int64_t));
+  return value;
+}
+float RowReader::readFloat(int index) const {
+  auto &c = columnsDefination[index];
+  if (c.data_type.type != DataType::FLOAT) {
+    throw std::runtime_error("type not match");
+  }
+  float value;
+  read(index, &value, sizeof(float));
+  return value;
+}
+bool RowReader::readBool(int index) const {
+  auto &c = columnsDefination[index];
+  if (c.data_type.type != DataType::BOOL) {
+    throw std::runtime_error("type not match");
+  }
+  bool value;
+  read(index, &value, sizeof(bool));
+  return value;
+}
+
+RowReader::~RowReader() = default;
