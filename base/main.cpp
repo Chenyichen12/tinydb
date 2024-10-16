@@ -97,7 +97,7 @@ int main(){
 #include <filesystem>
 #include <iostream>
 #include <unistd.h>
-
+#include <codecvt>
 #define READ true
 const char *f = __FILE__;
 int main() {
@@ -125,24 +125,63 @@ int main() {
 
     res = db.insertValue("student", [](RowBuilder *b) {
       try {
-        b->addValue((int64_t)(2222));
-        b->addValue(std::string("yichen"));
-        b->addValue(18);
+        b->addValue((int64_t)(1111));
+        b->addValue(std::wstring(L"伊见"));
+        b->addValue(16);
         b->addValue(false);
       } catch (std::exception &e) {
         std::cout << e.what() << std::endl;
       }
     });
+
+    res = db.insertValue("student", [](RowBuilder *b) {
+      try {
+        b->addValue((int64_t)(2222));
+        b->addValue(std::wstring(L"怡雏"));
+        b->addValue(17);
+        b->addValue(false);
+      } catch (std::exception &e) {
+        std::cout << e.what() << std::endl;
+      }
+    });
+
+    res = db.insertValue("student", [](RowBuilder *b) {
+      try {
+        b->addValue((int64_t)(3333));
+        b->addValue(std::wstring(L"逸佳"));
+        b->addValue(18);
+        b->addValue(true);
+      } catch (std::exception &e) {
+        std::cout << e.what() << std::endl;
+      }
+    });
+
+    res = db.insertValue("student", [](RowBuilder *b) {
+      try {
+        b->addValue((int64_t)(4444));
+        b->addValue(std::wstring(L"依澄"));
+        b->addValue(18);
+        b->addValue(true);
+      } catch (std::exception &e) {
+        std::cout << e.what() << std::endl;
+      }
+    });
+
     assert(res == 0);
 
     res = db.getValue("student", [](RowReader *reader) {
       auto id = reader->readInt64(0);
       auto name = reader->readString(1);
+
+      std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+      std::string narrow_string = converter.to_bytes(name);
+
       auto age = reader->readInt32(2);
       bool sex = reader->readBool(3);
-      std::wcout << "id: " << id << " name: " << name << " age: " << age
+      std::cout << "id: " << id << " name:" << narrow_string << " age: " << age
                  << " sex:" << sex << std::endl;
     });
+    assert(res == 0);
   } catch (std::exception &e) {
     std::cout << e.what() << std::endl;
   }

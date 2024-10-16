@@ -7,3 +7,5 @@ database.h
 database.cpp
 )
 target_link_libraries(basedb PRIVATE sqlparser nlohmann_json::nlohmann_json)
+
+target_compile_options(basedb PRIVATE -finput-charset=UTF-8)
