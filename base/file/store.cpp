@@ -917,7 +917,7 @@ int db_search(db_t *db, void *key, void *value, size_t value_size) {
         return -1;
       }
       memcpy(value, pval->value, pval->size);
-      return pval->size;
+      return 0;
     }
     i = -(i + 1);
     offset = btree_key_ptr(db, node, i)->child;

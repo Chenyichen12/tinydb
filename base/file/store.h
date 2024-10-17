@@ -46,7 +46,7 @@ int db_insert(db_t* db, void* key, void *value, size_t value_size);
  * @param[in] key key_size can't exceed max_key_size 需要保证key类型和创建数据库时一致
  * @param[out] value
  * @param[in] value_size 需要保证空间足够大
- * @return >=0 if success, ==-1 error
+ * @return ==0 if success, ==-1 error
 */
 int db_search(db_t* db, void* key, void *value, size_t value_size);
 /**

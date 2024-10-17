@@ -197,8 +197,31 @@ public:
   int insertValue(const std::string &table_name,
                   const std::function<void(RowBuilder *r)> &callback);
 
+/**
+ * @brief Get the Value object
+ * 
+ * @param table_name 
+ * @param callback 
+ * @return int error code
+  * 0 if success
+  * 1 if table not found
+  * 2 if the value is not complete
+ */
   int getValue(const std::string &table_name,
-               const std::function<void(RowReader* reader)> &callback) const;
+               const std::function<void(RowReader *reader)> &callback) const;
+/**
+ * @brief Get the Value object
+ * 
+ * @param table_name 
+ * @param callback 
+ * @return int error code
+  * 0 if success
+  * 1 if table not found
+  * 2 if get value is not success may be not found
+ */
+  int getValue(const std::string &table_name, void *primary_key,
+               const std::function<void(RowReader *reder)>& callback) const;
+
   void saveConfig() const;
 
   ~DataBase();

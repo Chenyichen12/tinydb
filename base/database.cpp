@@ -16,7 +16,7 @@ Table::~Table() {
 }
 
 int Table::getValue(void *primary_key, void *value, size_t buffer_size) const {
-  auto err = db_search(db, &primary_key, value, buffer_size);
+  auto err = db_search(db, primary_key, value, buffer_size);
   return err;
 }
 
@@ -291,6 +291,31 @@ int DataBase::getValue(
   });
 
   if (res == 0) {
+    return 0;
+  }
+  return 2;
+}
+
+int DataBase::getValue(
+    const std::string &table_name, void *primary_key,
+    const std::function<void(RowReader *reder)> &callback) const {
+  Table *target_table = nullptr;
+  for (auto t : db_tables) {
+    if (t->name() == table_name) {
+      target_table = t;
+      break;
+    }
+  }
+  if (target_table == nullptr) {
+    return 1;
+  }
+  auto val = std::make_unique<char[]>(target_table->entrySize());
+  auto res =
+      target_table->getValue(primary_key, val.get(), target_table->entrySize());
+  if (res == 0) {
+    auto reader =
+        std::make_unique<RowReader>(target_table->columns(), val.get());
+    callback(reader.get());
     return 0;
   }
   return 2;

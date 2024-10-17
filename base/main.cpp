@@ -94,10 +94,10 @@ int main(){
 #if true
 #include "database.h"
 #include <cassert>
+#include <codecvt>
 #include <filesystem>
 #include <iostream>
 #include <unistd.h>
-#include <codecvt>
 #define READ true
 const char *f = __FILE__;
 int main() {
@@ -179,7 +179,23 @@ int main() {
       auto age = reader->readInt32(2);
       bool sex = reader->readBool(3);
       std::cout << "id: " << id << " name:" << narrow_string << " age: " << age
-                 << " sex:" << sex << std::endl;
+                << " sex:" << sex << std::endl;
+    });
+    assert(res == 0);
+    
+    auto index = std::make_unique<int64_t>(4444);
+    res = db.getValue("student", index.get(), [](RowReader *reader) {
+      std::cout << "id 4444 has found" << std::endl;
+      auto id = reader->readInt64(0);
+      auto name = reader->readString(1);
+
+      std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+      std::string narrow_string = converter.to_bytes(name);
+
+      auto age = reader->readInt32(2);
+      bool sex = reader->readBool(3);
+      std::cout << "id: " << id << " name:" << narrow_string << " age: " << age
+                << " sex:" << sex << std::endl;
     });
     assert(res == 0);
   } catch (std::exception &e) {
