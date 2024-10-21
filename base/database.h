@@ -77,7 +77,8 @@ public:
    * 2 if no name
    * 3 if no key is not valid type
    * 4 if db is not set
-   * 5 if db name is already exist
+   * 5 if table name is already exist
+   * 6 if foreign key is not valid
    */
   int addTable(const std::function<void(TableBuilder *b)> &callback);
 

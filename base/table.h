@@ -114,8 +114,14 @@ public:
   TableBuilder &setPrimaryKey(int index);
   TableBuilder &setName(const std::string &name);
   TableBuilder &setDb(db_s *db);
-
   TableBuilder &setFromConfig(const nlohmann::json &j);
+
+  /**
+   * @brief Get the Forgein Keys object
+   * mainly for database to check the foreign key if valid for the database
+   * @return const std::vector<ForeignKey> 
+   */
+  const std::vector<ForeignKey> getForgeinKeys() const { return forgein_keys; }
   std::optional<DataType> getPrimaryKeyType() const;
   std::string name() const { return table_name; }
 };

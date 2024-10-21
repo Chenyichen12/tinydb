@@ -8,8 +8,6 @@
 #include <stdexcept>
 #include <unistd.h>
 
-
-
 DataBase::DataBase(const std::string &path) {
   if (access(path.c_str(), F_OK) == 0) {
     // read the db
@@ -83,6 +81,24 @@ int DataBase::addTable(const std::function<void(TableBuilder *b)> &callback) {
     }
   }
 
+  // check the foreign key is valid
+  const auto &check_foreign = b->getForgeinKeys();
+  for (const auto &c : check_foreign) {
+    bool found = false;
+    for (const auto &t : db_tables) {
+      auto table_name = t->table_name;
+      auto primary_string = t->columns()[t->primaryKeyIndex()].column_name;
+      if (c.table_name == table_name && c.column_name == primary_string) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return 6;
+    }
+  }
+
+  // prepare to build table
   db_s *table = nullptr;
   std::filesystem::path fs(db_path);
   auto tablePath = fs.parent_path() / (b->name() + ".db");
@@ -233,8 +249,6 @@ int DataBase::getValue(
   }
   return 2;
 }
-
-
 
 RowBuilder::RowBuilder(const std::vector<Column> &columnsDefination)
     : columnsDefination(columnsDefination) {
