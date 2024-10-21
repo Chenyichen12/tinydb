@@ -60,11 +60,6 @@ TableBuilder &TableBuilder::setPrimaryKey(int index) {
   primary_key_index = index;
   return *this;
 }
-TableBuilder &TableBuilder::setForgeinKey(int index) {
-  forgein_key_index = index;
-  return *this;
-}
-
 TableBuilder &TableBuilder::setPrimaryKey(const std::string &name) {
   for (size_t i = 0; i < columns.size(); i++) {
     if (columns[i].column_name == name) {
@@ -75,14 +70,21 @@ TableBuilder &TableBuilder::setPrimaryKey(const std::string &name) {
   throw std::runtime_error("primary key not found");
 }
 
-TableBuilder &TableBuilder::setForgeinKey(const std::string &name) {
+TableBuilder &TableBuilder::setForgeinKey(const std::string &name, const std::string &table, const std::string &column) {
   for (size_t i = 0; i < columns.size(); i++) {
     if (columns[i].column_name == name) {
-      forgein_key_index = i;
+      forgein_keys.push_back(ForeignKey{i, table, column});
       return *this;
     }
   }
   throw std::runtime_error("forgein key not found");
+}
+TableBuilder &TableBuilder::setForgeinKey(size_t index, const std::string &table, const std::string &column){
+  if(index >= columns.size()) {
+    throw std::runtime_error("index out of range");
+  }
+  forgein_keys.push_back(ForeignKey{index, table, column});
+  return *this;
 }
 
 TableBuilder &TableBuilder::setName(const std::string &name) {
@@ -107,9 +109,8 @@ Table *TableBuilder::build() const {
   auto t = new Table(cs, db);
   t->primary_key_index = primary_key_index.value();
   t->table_name = table_name;
-  if (this->forgein_key_index.has_value()) {
-    t->forgein_key_index = forgein_key_index.value();
-  }
+
+  t->forgein_keys = forgein_keys;
   return t;
 }
 
@@ -122,7 +123,15 @@ nlohmann::json Table::getConfig() const {
   nlohmann::json table;
   table["name"] = name();
   table["primary_key_index"] = primaryKeyIndex();
-  table["forgein_key_index"] = forgeinKeyIndex();
+  table["forgein_keys"] = nlohmann::json::array();
+  for(const auto& fk: forgeinKeys()) {
+    auto fk_json = nlohmann::json::object();
+    fk_json["index"] = fk.index;
+    fk_json["column"] = fk.column_name;
+    fk_json["table"] = fk.table_name;
+    table["forgein_keys"].push_back(fk_json);
+  }
+
   table["columns"] = nlohmann::json::array();
   for (const auto &c : columns()) {
     nlohmann::json column;
@@ -137,9 +146,8 @@ nlohmann::json Table::getConfig() const {
 TableBuilder &TableBuilder::setFromConfig(const nlohmann::json &j) {
     setName(j["name"]);
     setPrimaryKey(j["primary_key_index"].get<int>());
-    int forgein_key_index = j["forgein_key_index"];
-    if (forgein_key_index != -1) {
-      setForgeinKey(j["forgein_key_index"].get<int>());
+    for (const auto &fk: j["forgein_keys"]) {
+      setForgeinKey(fk["index"].get<int>(), fk["table"], fk["column"]);
     }
     auto columns = j["columns"].get<std::vector<nlohmann::json>>();
     for (const auto &c : columns) {

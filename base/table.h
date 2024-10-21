@@ -36,6 +36,12 @@ struct Column {
 
 class TableBuilder;
 class DataBase;
+
+struct ForeignKey {
+  size_t index;
+  std::string table_name;
+  std::string column_name;
+};
 /**
  * @brief the table of db
  * won't check the type of the key and value
@@ -46,7 +52,8 @@ class Table {
   std::vector<Column> columns_;
   // set by DataBase
   int primary_key_index;
-  int forgein_key_index = -1;
+
+  std::vector<ForeignKey> forgein_keys;
 
   db_s *db;
   std::string table_name;
@@ -78,10 +85,9 @@ public:
   DataType valueType(const std::string &column_name) const;
   const std::vector<Column> &columns() const { return columns_; }
   int primaryKeyIndex() const { return primary_key_index; }
-  int forgeinKeyIndex() const { return forgein_key_index; }
+  const std::vector<ForeignKey> &forgeinKeys() const { return forgein_keys; }
   size_t entrySize() const;
   std::string name() const { return table_name; }
-
 
   nlohmann::json getConfig() const;
 };
@@ -90,7 +96,7 @@ class TableBuilder {
   std::vector<Column> columns;
   std::string table_name;
   std::optional<int> primary_key_index;
-  std::optional<int> forgein_key_index;
+  std::vector<ForeignKey> forgein_keys = {};
   db_s *db = nullptr;
 
 public:
@@ -103,9 +109,9 @@ public:
   Table *build() const;
   TableBuilder &addColumn(const std::string &name, const DataType &type);
   TableBuilder &setPrimaryKey(const std::string &name);
-  TableBuilder &setForgeinKey(const std::string &name);
+  TableBuilder &setForgeinKey(const std::string &name, const std::string &table, const std::string &column);
+  TableBuilder &setForgeinKey(size_t index, const std::string &table, const std::string &column);
   TableBuilder &setPrimaryKey(int index);
-  TableBuilder &setForgeinKey(int index);
   TableBuilder &setName(const std::string &name);
   TableBuilder &setDb(db_s *db);
 

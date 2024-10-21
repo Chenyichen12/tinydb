@@ -4,7 +4,11 @@
         {
             name: "example",
             primary_key_index: 0,
-            forgein_key_index: -1,
+            forgein_keys: [{
+                index: 2;
+                table_name: "another"
+                column_name: "another_name"
+            }],
             column: [
                 {
                     name: "cloumn1"
