@@ -881,7 +881,7 @@ int db_check_all(db_t *db, const std::function<void(void* key,void* value)>& cal
       node_seek(db, nodeval,
                 DB_HEAD_SIZE +
                     ((valoffset - DB_HEAD_SIZE) & ~(DB_BLOCK_SIZE - 1)));
-      btree_value *pval = btree_value_ptr(nodeval, valoffset - nodeval->self);
+      btree_value *pval = btree_value_ptr(nodeval, valoffset - nodeval->self); 
       callback(key_ptr, pval->value);
 
       if (node->leaf == 0) {
@@ -907,11 +907,11 @@ int db_search(db_t *db, void *key, void *value, size_t value_size) {
     node_seek(db, node, offset);
     i = key_binary_search(db, node, key);
     if (i >= 0) {
-      offset = btree_key_ptr(db, node, i)->value;
+      offset = btree_key_ptr(db, node, i)->value; // 值的文件内的偏移
       node_seek(db, node,
                 DB_HEAD_SIZE +
-                    ((offset - DB_HEAD_SIZE) & ~(DB_BLOCK_SIZE - 1)));
-      btree_value *pval = btree_value_ptr(node, offset - node->self);
+                    ((offset - DB_HEAD_SIZE) & ~(DB_BLOCK_SIZE - 1))); // 读取值到node这个内存块上面
+      btree_value *pval = btree_value_ptr(node, offset - node->self); // 将node数据类型转化为btree_value类型
       if (pval->size > value_size) {
         errno = E2BIG;
         return -1;

@@ -8,53 +8,7 @@
 #include <stdexcept>
 #include <unistd.h>
 
-Table::Table(const std::vector<Column> &cs, db_t *db) : columns_(cs), db(db) {}
 
-Table::~Table() {
-  db_close(db);
-  db = nullptr;
-}
-
-int Table::getValue(void *primary_key, void *value, size_t buffer_size) const {
-  auto err = db_search(db, primary_key, value, buffer_size);
-  return err;
-}
-
-int Table::getValue(
-    const std::function<void(void *key, void *value)> &callback) const {
-  auto err = db_check_all(db, callback);
-  return err;
-}
-
-DataType Table::keyType() const {
-  return columns_[primary_key_index].data_type;
-}
-
-DataType Table::valueType(const std::string &column_name) const {
-  for (auto &c : columns_) {
-    if (c.column_name == column_name) {
-      return c.data_type;
-    }
-  }
-  throw std::runtime_error("column name not found");
-}
-
-size_t Table::entrySize() const {
-  size_t size = 0;
-  for (auto &c : columns_) {
-    size += c.data_type.size;
-  }
-  return size;
-}
-
-int Table::insertValue(void *primary_key, void *value,
-                       size_t value_size) const {
-  return db_insert(db, primary_key, value, value_size);
-}
-
-int Table::deleteValue(void *primary_key) const {
-  return db_delete(db, primary_key);
-}
 
 DataBase::DataBase(const std::string &path) {
   if (access(path.c_str(), F_OK) == 0) {
@@ -92,36 +46,7 @@ void DataBase::readConfig() {
   for (const auto &t : array) {
 
     auto builder = std::make_unique<TableBuilder>();
-    builder->setName(t["name"]);
-    builder->setPrimaryKey(t["primary_key_index"].get<int>());
-    int forgein_key_index = t["forgein_key_index"];
-    if (forgein_key_index != -1) {
-      builder->setForgeinKey(t["forgein_key_index"].get<int>());
-    }
-
-    auto columns = t["columns"].get<std::vector<nlohmann::json>>();
-    for (const auto &c : columns) {
-      int type = c["type"];
-      switch (type) {
-      case 0:
-        builder->addColumn(c["name"], DataType::Int32());
-        break;
-      case 1:
-        builder->addColumn(c["name"], DataType::Int64());
-        break;
-      case 2:
-        builder->addColumn(c["name"], DataType::Float());
-        break;
-      case 3:
-        builder->addColumn(c["name"], DataType::String(c["size"]));
-        break;
-      case 4:
-        builder->addColumn(c["name"], DataType::Bool());
-        break;
-      default:
-        throw std::runtime_error("unknow type");
-      }
-    }
+    builder->setFromConfig(t);
 
     std::filesystem::path fs(db_path);
     auto tablePath = fs.parent_path() / (builder->name() + ".db");
@@ -201,19 +126,7 @@ void DataBase::saveConfig() const {
   j["db_name"] = db_path;
   j["tables"] = nlohmann::json::array();
   for (const auto &t : db_tables) {
-    nlohmann::json table;
-    table["name"] = t->name();
-    table["primary_key_index"] = t->primaryKeyIndex();
-    table["forgein_key_index"] = t->forgeinKeyIndex();
-    table["columns"] = nlohmann::json::array();
-    for (const auto &c : t->columns()) {
-      nlohmann::json column;
-      column["name"] = c.column_name;
-      column["type"] = c.data_type.type;
-      column["size"] = c.data_type.size;
-      table["columns"].push_back(column);
-    }
-    j["tables"].push_back(table);
+    j["tables"].push_back(t->getConfig());
   }
 
   // 清除原有的配置文件
@@ -321,73 +234,7 @@ int DataBase::getValue(
   return 2;
 }
 
-TableBuilder &TableBuilder::addColumn(const std::string &name,
-                                      const DataType &type) {
-  columns.push_back(Column{name, type});
-  return *this;
-}
 
-TableBuilder &TableBuilder::setPrimaryKey(int index) {
-  primary_key_index = index;
-  return *this;
-}
-TableBuilder &TableBuilder::setForgeinKey(int index) {
-  forgein_key_index = index;
-  return *this;
-}
-
-TableBuilder &TableBuilder::setPrimaryKey(const std::string &name) {
-  for (size_t i = 0; i < columns.size(); i++) {
-    if (columns[i].column_name == name) {
-      primary_key_index = i;
-      return *this;
-    }
-  }
-  throw std::runtime_error("primary key not found");
-}
-
-TableBuilder &TableBuilder::setForgeinKey(const std::string &name) {
-  for (size_t i = 0; i < columns.size(); i++) {
-    if (columns[i].column_name == name) {
-      forgein_key_index = i;
-      return *this;
-    }
-  }
-  throw std::runtime_error("forgein key not found");
-}
-
-TableBuilder &TableBuilder::setName(const std::string &name) {
-  table_name = name;
-  return *this;
-}
-
-std::optional<DataType> TableBuilder::getPrimaryKeyType() const {
-  if (primary_key_index.has_value()) {
-    return columns[primary_key_index.value()].data_type;
-  }
-  return std::nullopt;
-}
-
-Table *TableBuilder::build() const {
-  if (!primary_key_index.has_value() || columns.size() == 0 ||
-      table_name == "" || db == nullptr) {
-    throw std::runtime_error(
-        "no primary key or column size == 0 or name is \"\"");
-  }
-  std::vector<Column> cs = columns;
-  auto t = new Table(cs, db);
-  t->primary_key_index = primary_key_index.value();
-  t->table_name = table_name;
-  if (this->forgein_key_index.has_value()) {
-    t->forgein_key_index = forgein_key_index.value();
-  }
-  return t;
-}
-
-TableBuilder &TableBuilder::setDb(db_s *db) {
-  this->db = db;
-  return *this;
-}
 
 RowBuilder::RowBuilder(const std::vector<Column> &columnsDefination)
     : columnsDefination(columnsDefination) {
