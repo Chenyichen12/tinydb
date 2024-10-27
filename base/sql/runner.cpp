@@ -31,10 +31,9 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
 
   auto where_colum = where->expr->table;
   auto where_table = where->expr->name;
-  auto find = where->expr2->ival;
-  std::cout << where_colum << std::endl;
+  auto find = where->expr2->name;
 
-  getEqual(&find, where_table, where_colum, [&](RowReader *r) {
+  getEqual(find, where_table, where_colum, [&](RowReader *r) {
     auto id = r->readInt64(0);
     auto name = r->readString(1);
 
@@ -42,7 +41,8 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
     std::string narrow_string = converter.to_bytes(name);
 
     auto age = r->readInt32(2);
-    std::cout<<"id: "<<id<<" name: "<<narrow_string<<" age: "<<age<<std::endl;
+    std::cout << "id: " << id << " name: " << narrow_string << " age: " << age
+              << std::endl;
   });
   std::cout << "select done" << std::endl;
   return 0;
@@ -96,14 +96,17 @@ int SelectRunner::compare(void *findVal, RowReader *r, int findIndex,
   }
   case DataType::Type::STRING: {
     auto val = r->readString(findIndex);
-    const auto &testVal = *(std::wstring *)findVal;
-    if (val == testVal) {
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::string narrow_string = converter.to_bytes(val);
+
+    const auto &testVal = std::string((char *)findVal);
+    if (narrow_string == testVal) {
       return 0;
     }
-    if (val > testVal) {
+    if (narrow_string > testVal) {
       return 1;
     }
-    if (val < testVal) {
+    if (narrow_string < testVal) {
       return 2;
     }
     break;

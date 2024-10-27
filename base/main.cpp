@@ -258,7 +258,7 @@ int main() {
   assert(res == 0);
 
   const char *testSelectSql =
-      "SELECT student.name, student.age FROM student WHERE student.id = 1212;";
+      "SELECT student.name, student.age FROM student WHERE student.name = '依澄';";
 
   hsql::SQLParserResult result;
   hsql::SQLParser::parse(testSelectSql, &result);
