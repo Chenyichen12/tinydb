@@ -91,7 +91,7 @@ int main(){
 
 #endif
 
-#if true
+#if false
 #include "database.h"
 #include <cassert>
 #include <codecvt>
@@ -212,4 +212,64 @@ int main() {
   return 0;
 }
 
+#endif
+
+#if true
+#include "database.h"
+#include "sql/runner.h"
+#include <SQLParser.h>
+#include <cassert>
+#include <filesystem>
+#include <unistd.h>
+#include <iostream>
+constexpr const char *f = __FILE__;
+int main() {
+  std::filesystem::path filepath(f);
+  auto dbPath = filepath.parent_path().parent_path() / "build" / "test.db";
+  auto testDbPath =
+      filepath.parent_path().parent_path() / "build" / "student.db";
+
+  unlink(dbPath.c_str());
+  unlink(testDbPath.c_str());
+
+  DataBase db(dbPath);
+
+  auto res = db.addTable([](TableBuilder *b) {
+    b->setName("student");
+    b->addColumn("id", DataType::Int64());
+    b->addColumn("name", DataType::String(128));
+    b->addColumn("age", DataType::Int32());
+    b->addColumn("sex", DataType::Bool());
+    b->setPrimaryKey("id");
+  });
+  assert(res == 0);
+
+  res = db.insertValue("student", [](RowBuilder *b) {
+    try {
+      b->addValue((int64_t)(1212));
+      b->addValue(std::wstring(L"依澄"));
+      b->addValue(18);
+      b->addValue(true);
+    } catch (std::exception &e) {
+      std::cout << e.what() << std::endl;
+    }
+  });
+
+  assert(res == 0);
+
+  const char *testSelectSql =
+      "SELECT student.name, student.age FROM student WHERE student.id = 1212;";
+
+  hsql::SQLParserResult result;
+  hsql::SQLParser::parse(testSelectSql, &result);
+  if (!result.isValid()) {
+    printf("Error: %s\n", result.errorMsg());
+    return 0;
+  }
+  const hsql::SQLStatement *stmt = result.getStatement(0);
+  SelectRunner runner(&db);
+  runner.execute(stmt);
+
+  return 0;
+}
 #endif

@@ -121,6 +121,9 @@ public:
   int getValue(const std::string &table_name, void *primary_key,
                const std::function<void(RowReader *reder)>& callback) const;
 
+  bool tableExist(const std::string &table_name) const;
+  const Table* getTable(const std::string &table_name) const;
+
   void saveConfig() const;
 
   ~DataBase();

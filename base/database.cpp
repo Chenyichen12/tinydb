@@ -250,6 +250,23 @@ int DataBase::getValue(
   return 2;
 }
 
+bool DataBase::tableExist(const std::string &table_name) const{
+  for (const auto &t : db_tables) {
+    if (t->name() == table_name) {
+      return true;
+    }
+  }
+  return false;
+}
+const Table* DataBase::getTable(const std::string &table_name) const{
+  for (const auto &t : db_tables) {
+    if (t->name() == table_name) {
+      return t;
+    }
+  }
+  return nullptr;
+}
+
 RowBuilder::RowBuilder(const std::vector<Column> &columnsDefination)
     : columnsDefination(columnsDefination) {
   auto totalSize = 0;
