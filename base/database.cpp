@@ -250,7 +250,7 @@ int DataBase::getValue(
   return 2;
 }
 
-bool DataBase::tableExist(const std::string &table_name) const{
+bool DataBase::tableExist(const std::string &table_name) const {
   for (const auto &t : db_tables) {
     if (t->name() == table_name) {
       return true;
@@ -258,7 +258,7 @@ bool DataBase::tableExist(const std::string &table_name) const{
   }
   return false;
 }
-const Table* DataBase::getTable(const std::string &table_name) const{
+const Table *DataBase::getTable(const std::string &table_name) const {
   for (const auto &t : db_tables) {
     if (t->name() == table_name) {
       return t;
@@ -370,6 +370,21 @@ void RowReader::read(size_t index, void *buffer, size_t size) const {
   }
   memcpy(buffer, value + byteoffset, size);
 }
+size_t RowReader::byteSize() const {
+  size_t size = 0;
+  for (const auto &c : columnsDefination) {
+    size += c.data_type.size;
+  }
+  return size;
+}
+
+void RowReader::readByte(char *buf, size_t bufSize) const {
+  memcpy(buf, value, bufSize);
+}
+
+bool RowReader::operator=(const RowReader &r) const {
+  return memcmp(value, r.value, byteSize());
+}
 
 std::wstring RowReader::readString(int index) const {
   auto &c = columnsDefination[index];
@@ -418,6 +433,15 @@ bool RowReader::readBool(int index) const {
   bool value;
   read(index, &value, sizeof(bool));
   return value;
+}
+
+int RowReader::columnAt(const std::string &colName) const {
+  for (size_t i = 0; i < columnsDefination.size(); i++) {
+    if (columnsDefination[i].column_name == colName) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 RowReader::~RowReader() = default;

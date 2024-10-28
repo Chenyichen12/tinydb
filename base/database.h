@@ -1,9 +1,8 @@
 #pragma once
+#include "table.h"
 #include <functional>
 #include <string>
 #include <vector>
-#include "table.h"
-
 
 class RowBuilder {
   const std::vector<Column> &columnsDefination;
@@ -29,13 +28,15 @@ public:
 };
 
 class RowReader {
-  const std::vector<Column> &columnsDefination;
+
   const char *value;
   void read(size_t index, void *buffer, size_t size) const;
 
+protected:
+  const std::vector<Column> &columnsDefination;
+
 public:
   RowReader(const std::vector<Column> &columnsDefination, const char *value);
-
   /**
    * @brief if the type is not match, throw the error
    * @param index column index
@@ -46,6 +47,11 @@ public:
   int64_t readInt64(int index) const;
   float readFloat(int index) const;
   bool readBool(int index) const;
+  size_t byteSize() const;
+  void readByte(char *buf, size_t bufSize) const;
+
+  int columnAt(const std::string& colName) const;
+  virtual bool operator=(const RowReader &r) const;
   ~RowReader();
 };
 
@@ -96,33 +102,33 @@ public:
   int insertValue(const std::string &table_name,
                   const std::function<void(RowBuilder *r)> &callback);
 
-/**
- * @brief Get the Value object
- * 
- * @param table_name 
- * @param callback 
- * @return int error code
-  * 0 if success
-  * 1 if table not found
-  * 2 if the value is not complete
- */
+  /**
+   * @brief Get the Value object
+   *
+   * @param table_name
+   * @param callback
+   * @return int error code
+   * 0 if success
+   * 1 if table not found
+   * 2 if the value is not complete
+   */
   int getValue(const std::string &table_name,
                const std::function<void(RowReader *reader)> &callback) const;
-/**
- * @brief Get the Value object
- * 
- * @param table_name 
- * @param callback 
- * @return int error code
-  * 0 if success
-  * 1 if table not found
-  * 2 if get value is not success may be not found
- */
+  /**
+   * @brief Get the Value object
+   *
+   * @param table_name
+   * @param callback
+   * @return int error code
+   * 0 if success
+   * 1 if table not found
+   * 2 if get value is not success may be not found
+   */
   int getValue(const std::string &table_name, void *primary_key,
-               const std::function<void(RowReader *reder)>& callback) const;
+               const std::function<void(RowReader *reder)> &callback) const;
 
   bool tableExist(const std::string &table_name) const;
-  const Table* getTable(const std::string &table_name) const;
+  const Table *getTable(const std::string &table_name) const;
 
   void saveConfig() const;
 

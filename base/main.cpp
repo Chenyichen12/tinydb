@@ -220,8 +220,8 @@ int main() {
 #include <SQLParser.h>
 #include <cassert>
 #include <filesystem>
-#include <unistd.h>
 #include <iostream>
+#include <unistd.h>
 constexpr const char *f = __FILE__;
 int main() {
   std::filesystem::path filepath(f);
@@ -233,7 +233,6 @@ int main() {
   unlink(testDbPath.c_str());
 
   DataBase db(dbPath);
-
   auto res = db.addTable([](TableBuilder *b) {
     b->setName("student");
     b->addColumn("id", DataType::Int64());
@@ -243,11 +242,34 @@ int main() {
     b->setPrimaryKey("id");
   });
   assert(res == 0);
+  db.saveConfig();
 
   res = db.insertValue("student", [](RowBuilder *b) {
     try {
-      b->addValue((int64_t)(1212));
-      b->addValue(std::wstring(L"依澄"));
+      b->addValue((int64_t)(1111));
+      b->addValue(std::wstring(L"伊见"));
+      b->addValue(16);
+      b->addValue(false);
+    } catch (std::exception &e) {
+      std::cout << e.what() << std::endl;
+    }
+  });
+
+  res = db.insertValue("student", [](RowBuilder *b) {
+    try {
+      b->addValue((int64_t)(2222));
+      b->addValue(std::wstring(L"怡雏"));
+      b->addValue(17);
+      b->addValue(false);
+    } catch (std::exception &e) {
+      std::cout << e.what() << std::endl;
+    }
+  });
+
+  res = db.insertValue("student", [](RowBuilder *b) {
+    try {
+      b->addValue((int64_t)(3333));
+      b->addValue(std::wstring(L"逸佳"));
       b->addValue(18);
       b->addValue(true);
     } catch (std::exception &e) {
@@ -255,13 +277,28 @@ int main() {
     }
   });
 
+  res = db.insertValue("student", [](RowBuilder *b) {
+    try {
+      b->addValue((int64_t)(4444));
+      b->addValue(std::wstring(L"依澄"));
+      b->addValue(18);
+      b->addValue(true);
+    } catch (std::exception &e) {
+      std::cout << e.what() << std::endl;
+    }
+  });
   assert(res == 0);
 
-  const char *testSelectSql =
-      "SELECT student.name, student.age FROM student WHERE student.name = '依澄';";
+  // const char *testSelectSql =
+  //     "SELECT student.name, student.age FROM student WHERE student.name =
+  //     '依澄';";
+  // const char* testSelectSql2 = "SELECT student.name, student.age FROM
+  // student;";
+  std::string input;
+  std::getline(std::cin, input);
 
   hsql::SQLParserResult result;
-  hsql::SQLParser::parse(testSelectSql, &result);
+  hsql::SQLParser::parse(input.c_str(), &result);
   if (!result.isValid()) {
     printf("Error: %s\n", result.errorMsg());
     return 0;
