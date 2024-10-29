@@ -11,6 +11,10 @@ void SqlOutput::outTitle() const {
     std::cout << col.name << "\t";
   }
   std::cout << std::endl;
+  for (const auto &col : output_cols_) {
+    std::cout << "-------";
+  }
+  std::cout << std::endl;
 }
 void SqlOutput::output(RowReader *r) const {
   for (const auto &col : output_cols_) {
@@ -110,8 +114,37 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
       return 0;
     }
 
+    auto where = sel->whereClause;
+    auto isPrimary = [&]() {
+      if (where->opType == hsql::kOpEquals) {
+        if (where->expr->type == hsql::kExprColumnRef &&
+            where->expr2->type != hsql::kExprColumnRef) {
+          auto colName = where->expr->name;
+          if (table->columns()[table->primaryKeyIndex()].column_name ==
+              colName) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
 
+    if (isPrimary()) {
+      auto colName = where->expr->name;
+      void *findVal = nullptr;
+      if (where->expr2->type == hsql::kExprLiteralInt) {
+        findVal = &where->expr2->ival;
+      }
+      if (where->expr2->type == hsql::kExprLiteralString) {
+        findVal = where->expr2->name;
+      }
+
+      getEqual(findVal, colName, table->name(),
+               [&](RowReader *reader) { output.output(reader); });
+    }
   }
+  std::cout << "-----------------" << std::endl;
+  std::cout << "Select Done" << std::endl;
   return 0;
 }
 
