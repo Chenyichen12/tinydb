@@ -1,4 +1,5 @@
 #include "runner.h"
+#include "seqexecutor.h"
 #include "sql/SelectStatement.h"
 #include <algorithm>
 #include <codecvt>
@@ -109,8 +110,8 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
     output.outTitle();
 
     if (sel->whereClause == nullptr) {
-      db->getValue(table->name(),
-                   [&](RowReader *reader) { output.output(reader); });
+      auto seqexecutor = SeqExecutor(db, table->name());
+      seqexecutor.next([&](RowReader *reader) { output.output(reader); });
       return 0;
     }
 

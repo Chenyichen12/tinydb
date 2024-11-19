@@ -10,6 +10,12 @@ table.cpp
 
 sql/runner.h
 sql/runner.cpp
+sql/executor.h
+sql/executor.cpp
+sql/seqexecutor.h
+sql/seqexecutor.cpp
+sql/filterexecutor.h
+sql/filterexecutor.cpp
 )
 
 target_include_directories(basedb PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
