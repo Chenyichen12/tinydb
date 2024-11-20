@@ -3,7 +3,7 @@
 
 class RowReader;
 class Executor {
-private:
+protected:
   std::vector<Executor *> children;
 
 public:

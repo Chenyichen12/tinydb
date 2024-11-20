@@ -1,6 +1,7 @@
 #include "runner.h"
 #include "seqexecutor.h"
 #include "sql/SelectStatement.h"
+#include "sql/filterexecutor.h"
 #include <algorithm>
 #include <codecvt>
 #include <iostream>
@@ -116,33 +117,35 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
     }
 
     auto where = sel->whereClause;
-    auto isPrimary = [&]() {
-      if (where->opType == hsql::kOpEquals) {
-        if (where->expr->type == hsql::kExprColumnRef &&
-            where->expr2->type != hsql::kExprColumnRef) {
-          auto colName = where->expr->name;
-          if (table->columns()[table->primaryKeyIndex()].column_name ==
-              colName) {
-            return true;
-          }
-        }
-      }
-      return false;
-    };
+    auto filterexecutor = new FilterExecutor(db, where);
+    filterexecutor->next([&](RowReader *reader) { output.output(reader); });
+    // auto isPrimary = [&]() {
+    //   if (where->opType == hsql::kOpEquals) {
+    //     if (where->expr->type == hsql::kExprColumnRef &&
+    //         where->expr2->type != hsql::kExprColumnRef) {
+    //       auto colName = where->expr->name;
+    //       if (table->columns()[table->primaryKeyIndex()].column_name ==
+    //           colName) {
+    //         return true;
+    //       }
+    //     }
+    //   }
+    //   return false;
+    // };
 
-    if (isPrimary()) {
-      auto colName = where->expr->name;
-      void *findVal = nullptr;
-      if (where->expr2->type == hsql::kExprLiteralInt) {
-        findVal = &where->expr2->ival;
-      }
-      if (where->expr2->type == hsql::kExprLiteralString) {
-        findVal = where->expr2->name;
-      }
+    // if (isPrimary()) {
+    //   auto colName = where->expr->name;
+    //   void *findVal = nullptr;
+    //   if (where->expr2->type == hsql::kExprLiteralInt) {
+    //     findVal = &where->expr2->ival;
+    //   }
+    //   if (where->expr2->type == hsql::kExprLiteralString) {
+    //     findVal = where->expr2->name;
+    //   }
 
-      getEqual(findVal, colName, table->name(),
-               [&](RowReader *reader) { output.output(reader); });
-    }
+    //   getEqual(findVal, colName, table->name(),
+    //            [&](RowReader *reader) { output.output(reader); });
+    // }
   }
   std::cout << "-----------------" << std::endl;
   std::cout << "Select Done" << std::endl;

@@ -289,17 +289,15 @@ int main() {
   });
   assert(res == 0);
 
-  // const char *testSelectSql = "SELECT student.name, student.age FROM student
-  // "
-  //                             "WHERE student.name = '依澄';";
-  // const char *testSelectSql2 = "SELECT student.name, student.age, student.sex
-  // "
-  //                              "FROM student WHERE student.id = 2222;";
-  std::string input;
-  std::getline(std::cin, input);
+  const char *testSelectSql = "SELECT student.name, student.age FROM student "
+                              "WHERE student.name = '依澄';";
+  const char *testSelectSql2 = "SELECT student.name, student.age, student.sex "
+                               "FROM student WHERE student.id = 2222;";
+  // std::string input;
+  // std::getline(std::cin, input);
 
   hsql::SQLParserResult result;
-  hsql::SQLParser::parse(input, &result);
+  hsql::SQLParser::parse(testSelectSql2, &result);
   if (!result.isValid()) {
     printf("Error: %s\n", result.errorMsg());
     return 0;

@@ -11,3 +11,15 @@ public:
       : db(db), find_table_(find_table) {}
   void next(const std::function<void(RowReader *reader)> &callback) override;
 };
+
+class KeyExecutor : public Executor {
+private:
+  DataBase *db;
+  void *keyVal;
+  std::string find_table_;
+
+public:
+  KeyExecutor(DataBase *db, const std::string &find_table, void *keyVal)
+      : db(db), find_table_(find_table), keyVal(keyVal) {}
+  void next(const std::function<void(RowReader *reader)> &callback) override;
+};
