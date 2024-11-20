@@ -293,11 +293,14 @@ int main() {
                               "WHERE student.name = '依澄';";
   const char *testSelectSql2 = "SELECT student.name, student.age, student.sex "
                                "FROM student WHERE student.id = 2222;";
+
+  const char * testSelectSql3 = "SELECT student.name, student.age FROM student "
+                                "WHERE student.age = 18 AND student.id = 3333;";
   // std::string input;
   // std::getline(std::cin, input);
 
   hsql::SQLParserResult result;
-  hsql::SQLParser::parse(testSelectSql2, &result);
+  hsql::SQLParser::parse(testSelectSql3, &result);
   if (!result.isValid()) {
     printf("Error: %s\n", result.errorMsg());
     return 0;

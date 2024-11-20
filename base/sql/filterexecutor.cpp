@@ -132,7 +132,7 @@ void FilterExecutor::next(
     children[0]->next([&](RowReader *reader) {
       children[1]->next([&](RowReader *reader2) {
         // todo: dump
-        if (reader->readInt32(0) == reader2->readInt32(0)) {
+        if (reader->readInt64(0) == reader2->readInt64(0)) {
           callback(reader);
         } else {
           callback(reader);
