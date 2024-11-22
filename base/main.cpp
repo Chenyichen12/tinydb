@@ -294,8 +294,8 @@ int main() {
   const char *testSelectSql2 = "SELECT student.name, student.age, student.sex "
                                "FROM student WHERE student.id = 2222;";
 
-  const char * testSelectSql3 = "SELECT student.name, student.age FROM student "
-                                "WHERE student.age = 18 AND student.id = 3333;";
+  const char *testSelectSql3 = "SELECT student.name, student.age FROM student "
+                               "WHERE student.age = 18 AND student.sex = true;";
   // std::string input;
   // std::getline(std::cin, input);
 

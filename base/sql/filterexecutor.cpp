@@ -10,7 +10,11 @@ FilterExecutor::FilterExecutor(DataBase *db, hsql::Expr *expr)
     auto right = new FilterExecutor(db, expr->expr2);
     addChild(left);
     addChild(right);
-    type = 0;
+    if (expr->opType == hsql::kOpAnd) {
+      type = 0;
+    } else {
+      type = 2;
+    }
   }
 
   if (expr->opType == hsql::kOpEquals) {
@@ -23,7 +27,7 @@ FilterExecutor::FilterExecutor(DataBase *db, hsql::Expr *expr)
     auto index = std::distance(table1->columns().begin(), priIndex);
     find_info.findIndex = index;
     if (!expr->expr2->hasTable()) {
-      const auto& col = table1->columns()[index];
+      const auto &col = table1->columns()[index];
       find_info.DataType = col.data_type.type;
       if (expr->expr2->type == hsql::kExprLiteralInt) {
         find_info.findVal = &expr->expr2->ival;
@@ -34,7 +38,7 @@ FilterExecutor::FilterExecutor(DataBase *db, hsql::Expr *expr)
       if (table1->columns()[table1->primaryKeyIndex()].column_name != colName) {
         auto exec = new SeqExecutor(db, table1->name());
         addChild(exec);
-      }else{
+      } else {
         auto exec = new KeyExecutor(db, table1->name(), find_info.findVal);
         addChild(exec);
       }
@@ -134,13 +138,14 @@ void FilterExecutor::next(
         // todo: dump
         if (reader->readInt64(0) == reader2->readInt64(0)) {
           callback(reader);
-        } else {
-          callback(reader);
-          callback(reader2);
         }
       });
     });
     return;
+  }
+  if (type == 2) {
+    children[0]->next(callback);
+    children[1]->next(callback);
   }
 
   if (type == 1) {
