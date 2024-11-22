@@ -45,3 +45,11 @@ public:
   SelectRunner(DataBase *db);
   int execute(const hsql::SQLStatement *stm) override;
 };
+
+class InsertRunner : public SqlRunner {
+  DataBase *db;
+
+public:
+  InsertRunner(DataBase *db);
+  int execute(const hsql::SQLStatement *stm) override;
+};

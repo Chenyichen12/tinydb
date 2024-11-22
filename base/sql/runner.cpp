@@ -1,5 +1,6 @@
 #include "runner.h"
 #include "seqexecutor.h"
+#include "sql/InsertStatement.h"
 #include "sql/SelectStatement.h"
 #include "sql/filterexecutor.h"
 #include <algorithm>
@@ -122,5 +123,62 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
   }
   std::cout << "-----------------" << std::endl;
   std::cout << "Select Done" << std::endl;
+  return 0;
+}
+
+InsertRunner::InsertRunner(DataBase *db) : db(db) {}
+
+int InsertRunner::execute(const hsql::SQLStatement *stm) {
+  auto sel = static_cast<const hsql::InsertStatement *>(stm);
+  auto tableName = sel->tableName;
+  if (!db->tableExist(tableName)) {
+    std::cout << "table " << tableName << " is not exist" << std::endl;
+    return 1;
+  }
+
+  auto table = db->getTable(tableName);
+  for (const auto &col : *sel->columns) {
+    // std::cout << col << '\n';
+    if (!table->hasColumn(col)) {
+      std::cout << "column " << col << " is not exist" << std::endl;
+      return 2;
+    }
+  }
+
+  auto result = db->insertValue(tableName, [&](RowBuilder *rowBuilder) {
+    for (const auto &col : *sel->columns) {
+
+      auto index = table->getColumnIndex(col);
+      auto value = sel->values->at(index);
+
+      if (value->isType(hsql::kExprLiteralString)) {
+        std::string str = value->getName();
+        rowBuilder->addValue(str);
+      }
+      if (value->isType(hsql::kExprLiteralInt) ||
+          value->isType(hsql::kExprLiteralFloat)) {
+
+        auto type = table->valueType(col);
+        if (type.type == DataType::Type::INT32) {
+          rowBuilder->addValue((int32_t)value->ival);
+        }
+        if (type.type == DataType::Type::INT64) {
+          rowBuilder->addValue((int64_t)value->ival);
+        }
+        if (type.type == DataType::Type::FLOAT) {
+          rowBuilder->addValue((float)value->fval);
+        }
+        if (type.type == DataType::Type::BOOL) {
+          rowBuilder->addValue((bool)value->ival);
+        }
+      }
+    }
+  });
+  if(result != 0){
+    std::cout << "insert failed" << std::endl;
+    return 1;
+  }
+
+
   return 0;
 }

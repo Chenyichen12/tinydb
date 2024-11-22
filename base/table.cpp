@@ -14,6 +14,24 @@ int Table::getValue(void *primary_key, void *value, size_t buffer_size) const {
   return err;
 }
 
+bool Table::hasColumn(const std::string &name) const {
+  for (const auto &c : columns_) {
+    if (c.column_name == name) {
+      return true;
+    }
+  }
+  return false;
+}
+
+int Table::getColumnIndex(const std::string &name) const {
+  for (size_t i = 0; i < columns_.size(); i++) {
+    if (columns_[i].column_name == name) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 int Table::getValue(
     const std::function<void(void *key, void *value)> &callback) const {
   auto err = db_check_all(db, callback);
@@ -70,7 +88,9 @@ TableBuilder &TableBuilder::setPrimaryKey(const std::string &name) {
   throw std::runtime_error("primary key not found");
 }
 
-TableBuilder &TableBuilder::setForgeinKey(const std::string &name, const std::string &table, const std::string &column) {
+TableBuilder &TableBuilder::setForgeinKey(const std::string &name,
+                                          const std::string &table,
+                                          const std::string &column) {
   for (size_t i = 0; i < columns.size(); i++) {
     if (columns[i].column_name == name) {
       forgein_keys.push_back(ForeignKey{i, table, column});
@@ -79,8 +99,10 @@ TableBuilder &TableBuilder::setForgeinKey(const std::string &name, const std::st
   }
   throw std::runtime_error("forgein key not found");
 }
-TableBuilder &TableBuilder::setForgeinKey(size_t index, const std::string &table, const std::string &column){
-  if(index >= columns.size()) {
+TableBuilder &TableBuilder::setForgeinKey(size_t index,
+                                          const std::string &table,
+                                          const std::string &column) {
+  if (index >= columns.size()) {
     throw std::runtime_error("index out of range");
   }
   forgein_keys.push_back(ForeignKey{index, table, column});
@@ -124,7 +146,7 @@ nlohmann::json Table::getConfig() const {
   table["name"] = name();
   table["primary_key_index"] = primaryKeyIndex();
   table["forgein_keys"] = nlohmann::json::array();
-  for(const auto& fk: forgeinKeys()) {
+  for (const auto &fk : forgeinKeys()) {
     auto fk_json = nlohmann::json::object();
     fk_json["index"] = fk.index;
     fk_json["column"] = fk.column_name;
@@ -144,33 +166,33 @@ nlohmann::json Table::getConfig() const {
 }
 
 TableBuilder &TableBuilder::setFromConfig(const nlohmann::json &j) {
-    setName(j["name"]);
-    setPrimaryKey(j["primary_key_index"].get<int>());
-    for (const auto &fk: j["forgein_keys"]) {
-      setForgeinKey(fk["index"].get<int>(), fk["table"], fk["column"]);
+  setName(j["name"]);
+  setPrimaryKey(j["primary_key_index"].get<int>());
+  for (const auto &fk : j["forgein_keys"]) {
+    setForgeinKey(fk["index"].get<int>(), fk["table"], fk["column"]);
+  }
+  auto columns = j["columns"].get<std::vector<nlohmann::json>>();
+  for (const auto &c : columns) {
+    int type = c["type"];
+    switch (type) {
+    case 0:
+      addColumn(c["name"], DataType::Int32());
+      break;
+    case 1:
+      addColumn(c["name"], DataType::Int64());
+      break;
+    case 2:
+      addColumn(c["name"], DataType::Float());
+      break;
+    case 3:
+      addColumn(c["name"], DataType::String(c["size"]));
+      break;
+    case 4:
+      addColumn(c["name"], DataType::Bool());
+      break;
+    default:
+      throw std::runtime_error("unknow type");
     }
-    auto columns = j["columns"].get<std::vector<nlohmann::json>>();
-    for (const auto &c : columns) {
-      int type = c["type"];
-      switch (type) {
-      case 0:
-        addColumn(c["name"], DataType::Int32());
-        break;
-      case 1:
-        addColumn(c["name"], DataType::Int64());
-        break;
-      case 2:
-        addColumn(c["name"], DataType::Float());
-        break;
-      case 3:
-        addColumn(c["name"], DataType::String(c["size"]));
-        break;
-      case 4:
-        addColumn(c["name"], DataType::Bool());
-        break;
-      default:
-        throw std::runtime_error("unknow type");
-      }
-    }
-    return *this;
+  }
+  return *this;
 }

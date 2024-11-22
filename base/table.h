@@ -90,6 +90,8 @@ public:
   std::string name() const { return table_name; }
 
   nlohmann::json getConfig() const;
+  bool hasColumn(const std::string &name) const;
+  int getColumnIndex(const std::string &name) const;
 };
 
 class TableBuilder {
