@@ -53,3 +53,11 @@ public:
   InsertRunner(DataBase *db);
   int execute(const hsql::SQLStatement *stm) override;
 };
+
+class DeleteRunner : public SqlRunner {
+  DataBase *db;
+
+public:
+  DeleteRunner(DataBase *db);
+  int execute(const hsql::SQLStatement *stm) override;
+};

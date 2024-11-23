@@ -1,10 +1,12 @@
 #include "runner.h"
 #include "seqexecutor.h"
+#include "sql/DeleteStatement.h"
 #include "sql/InsertStatement.h"
 #include "sql/SelectStatement.h"
 #include "sql/filterexecutor.h"
 #include <algorithm>
 #include <codecvt>
+#include <cstring>
 #include <iostream>
 #include <locale>
 SqlOutput::SqlOutput(const std::vector<ColDefinition> &outputColumns)
@@ -174,11 +176,65 @@ int InsertRunner::execute(const hsql::SQLStatement *stm) {
       }
     }
   });
-  if(result != 0){
+  if (result != 0) {
     std::cout << "insert failed" << std::endl;
     return 1;
   }
 
+  return 0;
+}
 
+DeleteRunner::DeleteRunner(DataBase *db) : db(db) {}
+
+int DeleteRunner::execute(const hsql::SQLStatement *stm) {
+  auto sel = static_cast<const hsql::DeleteStatement *>(stm);
+  auto tableName = sel->tableName;
+  if (!db->tableExist(tableName)) {
+    std::cout << "table " << tableName << " is not exist" << std::endl;
+    return 1;
+  }
+
+  auto table = db->getTable(tableName);
+  if (sel->expr == nullptr) {
+    std::cout << "not support delete all" << std::endl;
+    return 1;
+  }
+
+  auto where = sel->expr;
+  auto filterexecutor = new FilterExecutor(db, where);
+
+  auto index = table->primaryKeyIndex();
+  const auto &col = table->columns()[table->primaryKeyIndex()];
+  auto type = col.data_type.type;
+  filterexecutor->next([&](RowReader *reader) {
+    auto val = std::make_unique<char *>(nullptr);
+
+    switch (type) {
+    case DataType::INT32: {
+      val = std::make_unique<char *>(new char[4]);
+      auto v = reader->readInt32(index);
+      memcpy(*val, &v, 4);
+      break;
+    }
+    case DataType::INT64: {
+      val = std::make_unique<char *>(new char[8]);
+      auto v = reader->readInt64(index);
+      memcpy(*val, &v, 8);
+      break;
+    }
+    case DataType::STRING: {
+      auto v = reader->readString(index);
+      val = std::make_unique<char *>(new char[v.size()]);
+      memcpy(*val, v.c_str(), v.size());
+      break;
+    }
+    default:
+      break;
+    }
+    auto result = table->deleteValue(*val);
+    if (result != 0) {
+      std::cout << "delete failed" << std::endl;
+    }
+  });
   return 0;
 }
