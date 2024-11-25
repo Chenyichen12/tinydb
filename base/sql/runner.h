@@ -29,6 +29,7 @@ public:
    * @return int error code
    */
   virtual int execute(const hsql::SQLStatement *stm) = 0;
+  virtual ~SqlRunner() = default;
 };
 
 class SelectRunner : public SqlRunner {

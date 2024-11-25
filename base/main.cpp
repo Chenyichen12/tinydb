@@ -416,7 +416,7 @@ int main() {
 }
 #endif
 
-#if true
+#if false
 #include "database.h"
 #include "sql/runner.h"
 #include <SQLParser.h>
@@ -515,6 +515,113 @@ int main() {
   const hsql::SQLStatement *stmt2 = result2.getStatement(0);
   runner2.execute(stmt2);
 
+  return 0;
+}
+#endif
+
+#if true
+#include "database.h"
+#include "sql/runner.h"
+#include <SQLParser.h>
+#include <cassert>
+#include <cstring>
+#include <filesystem>
+#include <iostream>
+#include <unistd.h>
+constexpr const char *f = __FILE__;
+int main() {
+  std::filesystem::path filepath(f);
+  auto dbPath = filepath.parent_path().parent_path() / "build" / "test.db";
+  auto testDbPath =
+      filepath.parent_path().parent_path() / "build" / "student.db";
+
+  unlink(dbPath.c_str());
+  unlink(testDbPath.c_str());
+
+  DataBase db(dbPath);
+  auto res = db.addTable([](TableBuilder *b) {
+    b->setName("student");
+    b->addColumn("id", DataType::Int64());
+    b->addColumn("name", DataType::String(128));
+    b->addColumn("age", DataType::Int32());
+    b->addColumn("sex", DataType::Bool());
+    b->setPrimaryKey("id");
+  });
+  assert(res == 0);
+  db.saveConfig();
+
+  res = db.insertValue("student", [](RowBuilder *b) {
+    try {
+      b->addValue((int64_t)(1111));
+      b->addValue(std::wstring(L"伊见"));
+      b->addValue(16);
+      b->addValue(false);
+    } catch (std::exception &e) {
+      std::cout << e.what() << std::endl;
+    }
+  });
+
+  res = db.insertValue("student", [](RowBuilder *b) {
+    try {
+      b->addValue((int64_t)(2222));
+      b->addValue(std::wstring(L"怡雏"));
+      b->addValue(17);
+      b->addValue(false);
+    } catch (std::exception &e) {
+      std::cout << e.what() << std::endl;
+    }
+  });
+
+  res = db.insertValue("student", [](RowBuilder *b) {
+    try {
+      b->addValue((int64_t)(3333));
+      b->addValue(std::wstring(L"逸佳"));
+      b->addValue(18);
+      b->addValue(true);
+    } catch (std::exception &e) {
+      std::cout << e.what() << std::endl;
+    }
+  });
+
+  res = db.insertValue("student", [](RowBuilder *b) {
+    try {
+      b->addValue((int64_t)(4444));
+      b->addValue(std::wstring(L"依澄"));
+      b->addValue(18);
+      b->addValue(false);
+    } catch (std::exception &e) {
+      std::cout << e.what() << std::endl;
+    }
+  });
+  assert(res == 0);
+  while (true) {
+    std::string input;
+    std::getline(std::cin, input);
+    hsql::SQLParserResult result;
+    hsql::SQLParser::parse(input.c_str(), &result);
+    if (!result.isValid()) {
+      printf("Error: %s\n", result.errorMsg());
+      continue;
+    }
+    const hsql::SQLStatement *stmt = result.getStatement(0);
+    auto runner = std::unique_ptr<SqlRunner>(nullptr);
+    switch (stmt->type()) {
+    case hsql::kStmtSelect:
+      runner = std::make_unique<SelectRunner>(&db);
+      break;
+    case hsql::kStmtInsert:
+      runner = std::make_unique<InsertRunner>(&db);
+      break;
+    case hsql::kStmtDelete:
+      runner = std::make_unique<DeleteRunner>(&db);
+      break;
+    default:
+      break;
+    }
+    if (runner) {
+      runner->execute(stmt);
+    }
+  }
   return 0;
 }
 #endif

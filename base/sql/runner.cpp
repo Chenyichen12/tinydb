@@ -179,6 +179,8 @@ int InsertRunner::execute(const hsql::SQLStatement *stm) {
   if (result != 0) {
     std::cout << "insert failed" << std::endl;
     return 1;
+  } else {
+    std::cout << "insert success" << std::endl;
   }
 
   return 0;
@@ -206,6 +208,7 @@ int DeleteRunner::execute(const hsql::SQLStatement *stm) {
   auto index = table->primaryKeyIndex();
   const auto &col = table->columns()[table->primaryKeyIndex()];
   auto type = col.data_type.type;
+  std::vector<std::unique_ptr<char *>> prepareDeleteItem;
   filterexecutor->next([&](RowReader *reader) {
     auto val = std::make_unique<char *>(nullptr);
 
@@ -231,10 +234,26 @@ int DeleteRunner::execute(const hsql::SQLStatement *stm) {
     default:
       break;
     }
-    auto result = table->deleteValue(*val);
-    if (result != 0) {
-      std::cout << "delete failed" << std::endl;
+    if (val != nullptr) {
+      prepareDeleteItem.push_back(std::move(val));
     }
   });
+
+  bool isSuccess = true;
+  for (auto &val : prepareDeleteItem) {
+    auto result = table->deleteValue(*val);
+    if (result == 0) {
+      std::cout << "can't find the value to delete" << std::endl;
+      isSuccess = false;
+    }
+    if (result == -1) {
+      std::cout << "delete failed" << std::endl;
+      isSuccess = false;
+      break;
+    }
+  }
+  if (isSuccess) {
+    std::cout << "delete done" << std::endl;
+  }
   return 0;
 }
