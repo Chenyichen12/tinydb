@@ -1,5 +1,6 @@
 #include "runner.h"
 #include "seqexecutor.h"
+#include "sql/CreateStatement.h"
 #include "sql/DeleteStatement.h"
 #include "sql/InsertStatement.h"
 #include "sql/SelectStatement.h"
@@ -255,5 +256,63 @@ int DeleteRunner::execute(const hsql::SQLStatement *stm) {
   if (isSuccess) {
     std::cout << "delete done" << std::endl;
   }
+  return 0;
+}
+
+CreateTableRunner::CreateTableRunner(DataBase *db) : db(db) {}
+
+int CreateTableRunner::execute(const hsql::SQLStatement *stm) {
+  auto sel = static_cast<const hsql::CreateStatement *>(stm);
+  auto tableName = sel->tableName;
+
+  if (db->tableExist(tableName)) {
+    std::cout << "table " << tableName << " is exist" << std::endl;
+    return 1;
+  }
+
+  auto firstCol = sel->columns->at(0);
+  if (firstCol->type.data_type != hsql::DataType::INT &&
+      firstCol->type.data_type != hsql::DataType::LONG) {
+    std::cout << "first column must be int" << std::endl;
+    return 1;
+  }
+
+  auto result = db->addTable([&](TableBuilder *builder) {
+    builder->setName(tableName);
+    for (const auto &col : *sel->columns) {
+      DataType type = DataType::Int32();
+      switch (col->type.data_type) {
+      case hsql::DataType::INT: {
+        type = DataType::Int32();
+        break;
+      }
+      case hsql::DataType::LONG: {
+        type = DataType::Int64();
+        break;
+      }
+      case hsql::DataType::FLOAT: {
+        type = DataType::Float();
+        break;
+      }
+      case hsql::DataType::VARCHAR: {
+        auto length = col->type.length;
+        type = DataType::String(length);
+        break;
+      }
+      default:
+        break;
+      }
+      builder->addColumn(col->name, type);
+    }
+    builder->setPrimaryKey(0);
+  });
+
+  if(result != 0){
+    std::cout << "create table failed" << std::endl;
+    return 1;
+  }
+
+  std::cout << "create table success" << std::endl;
+
   return 0;
 }

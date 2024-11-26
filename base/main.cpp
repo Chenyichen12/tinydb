@@ -615,6 +615,9 @@ int main() {
     case hsql::kStmtDelete:
       runner = std::make_unique<DeleteRunner>(&db);
       break;
+    case hsql::kStmtCreate: {
+      runner = std::make_unique<CreateTableRunner>(&db);
+    }
     default:
       break;
     }
