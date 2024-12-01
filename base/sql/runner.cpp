@@ -1,10 +1,10 @@
 #include "runner.h"
-#include "seqexecutor.h"
+#include "executor/seqexecutor.h"
 #include "sql/CreateStatement.h"
 #include "sql/DeleteStatement.h"
 #include "sql/InsertStatement.h"
 #include "sql/SelectStatement.h"
-#include "sql/filterexecutor.h"
+#include "executor/filterexecutor.h"
 #include <algorithm>
 #include <codecvt>
 #include <cstring>
@@ -312,6 +312,7 @@ int CreateTableRunner::execute(const hsql::SQLStatement *stm) {
     return 1;
   }
 
+  db->saveConfig();
   std::cout << "create table success" << std::endl;
 
   return 0;

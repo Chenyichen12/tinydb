@@ -1,6 +1,6 @@
 #include "filterexecutor.h"
 #include "database.h"
-#include "sql/seqexecutor.h"
+#include "executor/seqexecutor.h"
 #include <codecvt>
 #include <locale>
 FilterExecutor::FilterExecutor(DataBase *db, hsql::Expr *expr)

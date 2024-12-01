@@ -528,6 +528,7 @@ int main() {
 #include <filesystem>
 #include <iostream>
 #include <unistd.h>
+#define INIT_TABLE 1
 constexpr const char *f = __FILE__;
 int main() {
   std::filesystem::path filepath(f);
@@ -539,6 +540,8 @@ int main() {
   unlink(testDbPath.c_str());
 
   DataBase db(dbPath);
+
+#if INIT_TABLE
   auto res = db.addTable([](TableBuilder *b) {
     b->setName("student");
     b->addColumn("id", DataType::Int64());
@@ -594,8 +597,10 @@ int main() {
     }
   });
   assert(res == 0);
+#endif
   while (true) {
     std::string input;
+    std::cout<<">$ ";
     std::getline(std::cin, input);
     hsql::SQLParserResult result;
     hsql::SQLParser::parse(input.c_str(), &result);
@@ -605,6 +610,7 @@ int main() {
     }
     const hsql::SQLStatement *stmt = result.getStatement(0);
     auto runner = std::unique_ptr<SqlRunner>(nullptr);
+    // std::cout<<"*************"<<std::endl;
     switch (stmt->type()) {
     case hsql::kStmtSelect:
       runner = std::make_unique<SelectRunner>(&db);
@@ -624,6 +630,7 @@ int main() {
     if (runner) {
       runner->execute(stmt);
     }
+    // std::cout<<"*************"<<std::endl;
   }
   return 0;
 }
