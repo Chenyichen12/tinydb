@@ -1,10 +1,11 @@
 #include "runner.h"
+#include "executor/filterexecutor.h"
+#include "executor/limitexecutor.h"
 #include "executor/seqexecutor.h"
 #include "sql/CreateStatement.h"
 #include "sql/DeleteStatement.h"
 #include "sql/InsertStatement.h"
 #include "sql/SelectStatement.h"
-#include "executor/filterexecutor.h"
 #include <algorithm>
 #include <codecvt>
 #include <cstring>
@@ -114,15 +115,34 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
     SqlOutput output(outputCols);
     output.outTitle();
 
-    if (sel->whereClause == nullptr) {
-      auto seqexecutor = SeqExecutor(db, table->name());
-      seqexecutor.next([&](RowReader *reader) { output.output(reader); });
-      return 0;
+    std::unique_ptr<Executor> executor(nullptr);
+    if (sel->limit != nullptr) {
+      auto limit = sel->limit->limit->ival;
+      int offset = 0;
+      if (sel->limit->offset != nullptr) {
+        offset = sel->limit->offset->ival;
+      }
+      executor.reset(new LimitExecutor(limit, offset));
     }
 
-    auto where = sel->whereClause;
-    auto filterexecutor = new FilterExecutor(db, where);
-    filterexecutor->next([&](RowReader *reader) { output.output(reader); });
+    if (sel->whereClause == nullptr) {
+      auto seqexecutor = new SeqExecutor(db, table->name());
+      if (executor != nullptr) {
+        executor->addChild(seqexecutor);
+      } else {
+        executor.reset(seqexecutor);
+      }
+    } else {
+      auto where = sel->whereClause;
+      auto filterexecutor = new FilterExecutor(db, where);
+      if (executor != nullptr) {
+        executor->addChild(filterexecutor);
+      } else {
+        executor.reset(filterexecutor);
+      }
+    }
+    executor->next([&](RowReader *reader) { output.output(reader); });
+    return 0;
   }
   std::cout << "-----------------" << std::endl;
   std::cout << "Select Done" << std::endl;
@@ -307,7 +327,7 @@ int CreateTableRunner::execute(const hsql::SQLStatement *stm) {
     builder->setPrimaryKey(0);
   });
 
-  if(result != 0){
+  if (result != 0) {
     std::cout << "create table failed" << std::endl;
     return 1;
   }

@@ -16,6 +16,8 @@ executor/seqexecutor.h
 executor/seqexecutor.cpp
 executor/filterexecutor.h
 executor/filterexecutor.cpp
+executor/limitexecutor.h
+executor/limitexecutor.cpp
 )
 
 target_include_directories(basedb PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

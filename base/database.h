@@ -31,12 +31,15 @@ class RowReader {
 
   const char *value;
   void read(size_t index, void *buffer, size_t size) const;
+  bool hasOnwer = false;
 
 protected:
   const std::vector<Column> &columnsDefination;
 
 public:
-  RowReader(const std::vector<Column> &columnsDefination, const char *value);
+  explicit RowReader(const std::vector<Column> &columnsDefination, const char *value);
+
+  RowReader* clone() const;
   /**
    * @brief if the type is not match, throw the error
    * @param index column index

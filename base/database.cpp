@@ -386,6 +386,17 @@ bool RowReader::operator=(const RowReader &r) const {
   return memcmp(value, r.value, byteSize());
 }
 
+RowReader *RowReader::clone() const {
+  auto new_value = new char[byteSize()];
+  memcpy(new_value, value, byteSize());
+
+  auto columnsDefination = new std::vector<Column>(this->columnsDefination);
+
+  auto reader =  new RowReader(*columnsDefination, new_value);
+  reader->hasOnwer = true;
+  return reader;
+}
+
 std::wstring RowReader::readString(int index) const {
   auto &c = columnsDefination[index];
   if (c.data_type.type != DataType::STRING) {
@@ -444,4 +455,9 @@ int RowReader::columnAt(const std::string &colName) const {
   return -1;
 }
 
-RowReader::~RowReader() = default;
+RowReader::~RowReader() {
+  if (hasOnwer) {
+    delete[] value;
+    delete &columnsDefination;
+  }
+};
