@@ -1,6 +1,7 @@
 #include "runner.h"
 #include "executor/filterexecutor.h"
 #include "executor/limitexecutor.h"
+#include "executor/orderexecutor.h"
 #include "executor/seqexecutor.h"
 #include "sql/CreateStatement.h"
 #include "sql/DeleteStatement.h"
@@ -11,6 +12,7 @@
 #include <cstring>
 #include <iostream>
 #include <locale>
+#include <stack>
 SqlOutput::SqlOutput(const std::vector<ColDefinition> &outputColumns)
     : output_cols_(outputColumns) {}
 void SqlOutput::outTitle() const {
@@ -115,33 +117,82 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
     SqlOutput output(outputCols);
     output.outTitle();
 
-    std::unique_ptr<Executor> executor(nullptr);
+    std::vector<Executor *> executors;
+
     if (sel->limit != nullptr) {
       auto limit = sel->limit->limit->ival;
       int offset = 0;
       if (sel->limit->offset != nullptr) {
         offset = sel->limit->offset->ival;
       }
-      executor.reset(new LimitExecutor(limit, offset));
+      auto limitexecutor = new LimitExecutor(offset, limit);
+      executors.push_back(limitexecutor);
+    }
+    if (sel->order != nullptr) {
+      std::vector<int> colIndex;
+      std::vector<int> colType;
+      for (const auto &o : *sel->order) {
+        if (!db->tableExist(o->expr->table)) {
+          std::cout << "table " << table << " is not exist" << std::endl;
+          return 1;
+        }
+
+        auto col = table->getColumnIndex(o->expr->name);
+        if (col == -1) {
+          std::cout << "column " << o->expr->name << " is not exist"
+                    << std::endl;
+          return 1;
+        }
+        auto rCol = table->columns()[col];
+        switch (rCol.data_type.type) {
+        case DataType::INT32:
+          colType.push_back(0);
+          break;
+        case DataType::INT64:
+          colType.push_back(1);
+          break;
+        case DataType::FLOAT:
+          colType.push_back(2);
+          break;
+        case DataType::STRING:
+          colType.push_back(3);
+          break;
+        default:
+          colType.push_back(-1);
+          break;
+        }
+        colIndex.push_back(col);
+      }
+      auto orderexecutor = new OrderExecutor(colIndex, colType);
+      if (executors.empty()) {
+        executors.push_back(orderexecutor);
+      } else {
+        executors.back()->addChild(orderexecutor);
+        executors.push_back(orderexecutor);
+      }
     }
 
     if (sel->whereClause == nullptr) {
       auto seqexecutor = new SeqExecutor(db, table->name());
-      if (executor != nullptr) {
-        executor->addChild(seqexecutor);
+      if (executors.empty()) {
+        executors.push_back(seqexecutor);
       } else {
-        executor.reset(seqexecutor);
+        executors.back()->addChild(seqexecutor);
+        executors.push_back(seqexecutor);
       }
     } else {
       auto where = sel->whereClause;
       auto filterexecutor = new FilterExecutor(db, where);
-      if (executor != nullptr) {
-        executor->addChild(filterexecutor);
+      if (executors.empty()) {
+        executors.push_back(filterexecutor);
       } else {
-        executor.reset(filterexecutor);
+        executors.back()->addChild(filterexecutor);
+        executors.push_back(filterexecutor);
       }
     }
-    executor->next([&](RowReader *reader) { output.output(reader); });
+    executors[0]->next([&](RowReader *reader) { output.output(reader); });
+
+    delete executors[0];
     return 0;
   }
   std::cout << "-----------------" << std::endl;

@@ -555,7 +555,7 @@ int main() {
 
   res = db.insertValue("student", [](RowBuilder *b) {
     try {
-      b->addValue((int64_t)(1111));
+      b->addValue((int64_t)(3333));
       b->addValue(std::wstring(L"伊见"));
       b->addValue(16);
       b->addValue(false);
@@ -577,7 +577,7 @@ int main() {
 
   res = db.insertValue("student", [](RowBuilder *b) {
     try {
-      b->addValue((int64_t)(3333));
+      b->addValue((int64_t)(1111));
       b->addValue(std::wstring(L"逸佳"));
       b->addValue(18);
       b->addValue(true);
