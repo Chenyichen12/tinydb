@@ -660,3 +660,118 @@ int main() {
   return 0;
 }
 #endif
+
+#if false
+#include "sql/runner.h"
+#include <SQLParser.h>
+#include <cassert>
+#include <database.h>
+#include <filesystem>
+#include <iostream>
+#include <unistd.h>
+constexpr const char *f = __FILE__;
+
+void test_mark(DataBase *db, int large) {
+  auto start = std::chrono::high_resolution_clock::now();
+  for (int i = 0; i < large; i++) {
+    auto result = db->insertValue("student", [&](RowBuilder *b) {
+      b->addValue((int64_t)(i));
+      std::string name = "name" + std::to_string(i);
+      b->addValue(name);
+    });
+    if (result != 0) {
+      std::cout << "insert failed" << std::endl;
+      throw std::runtime_error("insert failed");
+    }
+  }
+  auto end = std::chrono::high_resolution_clock::now();
+
+  std::cout << "insert amount: " << large << ' ' << "Time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << '\n';
+
+  // start time;
+  start = std::chrono::high_resolution_clock::now();
+  db->getValue("student", [&](RowReader *reader) {
+    auto id = reader->readInt64(0);
+    auto name = reader->readString(1);
+  });
+  // end time;
+  end = std::chrono::high_resolution_clock::now();
+
+  std::cout << "select seq amount: " << large << ' ' << "Time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << '\n';
+
+  start = std::chrono::high_resolution_clock::now();
+  for(int i = 0; i < large; i++){
+    auto index = std::make_unique<int64_t>(i);
+    auto res = db->getValue("student", index.get(), [&](RowReader *reader) {
+      auto id = reader->readInt64(0);
+    });
+  }
+  end = std::chrono::high_resolution_clock::now();
+
+  std::cout << "select id amount: " << large << ' ' << "Time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << '\n';
+}
+
+void update_mark(DataBase *db, int large) {
+  const char *sql = "update student set name='wow';";
+  hsql::SQLParserResult result;
+  hsql::SQLParser::parse(sql, &result);
+  if (!result.isValid()) {
+    printf("Error: %s\n", result.errorMsg());
+    return;
+  }
+
+  const hsql::SQLStatement *stmt = result.getStatement(0);
+  UpdateRunner runner(db);
+
+  // start time;
+  auto start = std::chrono::high_resolution_clock::now();
+  runner.execute(stmt);
+  // end time;
+  auto end = std::chrono::high_resolution_clock::now();
+
+  std::cout << "update amount: " << large << ' ' << "Time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                     start)
+                   .count()
+            << "ms" << '\n';
+}
+
+int main() {
+  std::filesystem::path filepath(f);
+  auto dbPath =
+      filepath.parent_path().parent_path() / "build" / "bench_mark.db";
+  auto testDbPath =
+      filepath.parent_path().parent_path() / "build" / "student.db";
+  unlink(dbPath.c_str());
+  unlink(testDbPath.c_str());
+
+  DataBase db(dbPath);
+  auto res = db.addTable([](TableBuilder *b) {
+    b->setName("student");
+    b->addColumn("id", DataType::Int64());
+    b->addColumn("name", DataType::String(1000));
+    b->setPrimaryKey("id");
+  });
+
+  assert(res == 0);
+
+  db.saveConfig();
+
+  // test_mark(&db, 1000);
+  // test_mark(&db, 10000);
+  test_mark(&db, 100000);
+  update_mark(&db, 10000);
+}
+#endif

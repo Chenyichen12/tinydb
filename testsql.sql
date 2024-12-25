@@ -19,3 +19,11 @@ select * from student order by student.name;
 update student set name='test' where student.age=18;
 
 delete from student where student.age = 18;
+
+
+some benchmark test:
+
+insert amount: 100000 Time: 1396ms
+select seq amount: 100000 Time: 385ms
+select id amount: 100000 Time: 441ms
+update amount: 10000 Time: 2257ms
