@@ -535,9 +535,11 @@ int main() {
   auto dbPath = filepath.parent_path().parent_path() / "build" / "test.db";
   auto testDbPath =
       filepath.parent_path().parent_path() / "build" / "student.db";
+  auto test2DbPath = filepath.parent_path().parent_path() / "build" / "student_apartment.db";
 
   unlink(dbPath.c_str());
   unlink(testDbPath.c_str());
+  unlink(test2DbPath.c_str());
 
   DataBase db(dbPath);
 
@@ -550,6 +552,15 @@ int main() {
     b->addColumn("sex", DataType::Bool());
     b->setPrimaryKey("id");
   });
+  assert(res == 0);
+
+  res = db.addTable([](TableBuilder*b){
+    b->setName("student_apartment");
+    b->addColumn("id", DataType::Int64());
+    b->addColumn("apartment", DataType::String(128));
+    b->setPrimaryKey("id");
+  });
+
   assert(res == 0);
   db.saveConfig();
 
@@ -597,21 +608,32 @@ int main() {
     }
   });
   assert(res == 0);
+
+  res = db.insertValue("student_apartment", [](RowBuilder *b){
+    try{
+      b->addValue((int64_t)(1111));
+      b->addValue(std::wstring(L"1-1-1"));
+    }catch(std::exception &e){
+      std::cout<<e.what()<<std::endl;
+    }
+  });
+
+  assert(res == 0);
 #endif
   while (true) {
     std::string input;
     std::cout<<">$ ";
     std::getline(std::cin, input);
-    hsql::SQLParserResult result;
-    hsql::SQLParser::parse(input.c_str(), &result);
+    hsql::SQLParserResult result; // 分配result对象
+    hsql::SQLParser::parse(input.c_str(), &result); //解析result
     if (!result.isValid()) {
       printf("Error: %s\n", result.errorMsg());
       continue;
     }
-    const hsql::SQLStatement *stmt = result.getStatement(0);
+    const hsql::SQLStatement *stmt = result.getStatement(0); // 得到第一个语句 一般来说只需要处理第一个
     auto runner = std::unique_ptr<SqlRunner>(nullptr);
     // std::cout<<"*************"<<std::endl;
-    switch (stmt->type()) {
+    switch (stmt->type()) { // 根据语句类型选择执行器
     case hsql::kStmtSelect:
       runner = std::make_unique<SelectRunner>(&db);
       break;

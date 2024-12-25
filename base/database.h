@@ -51,7 +51,7 @@ public:
   float readFloat(int index) const;
   bool readBool(int index) const;
   size_t byteSize() const;
-  void readByte(char *buf, size_t bufSize) const;
+  void readByte(char *buf, size_t bufSize, size_t offset = 0) const;
 
   int columnAt(const std::string& colName) const;
   virtual bool operator=(const RowReader &r) const;

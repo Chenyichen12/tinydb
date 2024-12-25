@@ -378,8 +378,10 @@ size_t RowReader::byteSize() const {
   return size;
 }
 
-void RowReader::readByte(char *buf, size_t bufSize) const {
-  memcpy(buf, value, bufSize);
+void RowReader::readByte(char *buf, size_t bufSize, size_t offset) const {
+  // memcpy(buf, value, bufSize);
+
+  memcpy(buf + offset, value, bufSize);
 }
 
 bool RowReader::operator=(const RowReader &r) const {

@@ -3,6 +3,7 @@
 #include "executor/limitexecutor.h"
 #include "executor/orderexecutor.h"
 #include "executor/seqexecutor.h"
+#include "executor/tablejoinexector.h"
 #include "sql/CreateStatement.h"
 #include "sql/DeleteStatement.h"
 #include "sql/InsertStatement.h"
@@ -12,7 +13,7 @@
 #include <cstring>
 #include <iostream>
 #include <locale>
-#include <stack>
+
 SqlOutput::SqlOutput(const std::vector<ColDefinition> &outputColumns)
     : output_cols_(outputColumns) {}
 void SqlOutput::outTitle() const {
@@ -87,8 +88,75 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
 
   // just one table or two table
   if (fromTable.size() > 1) {
-    std::cout << "not support three or more table" << std::endl;
-    return 1;
+
+    auto firstTable = fromTable[0];
+    auto secondTable = fromTable[1];
+
+    if (!db->tableExist(firstTable)) {
+      std::cout << "table " << firstTable << " is not exist" << std::endl;
+      return 1;
+    }
+
+    if (!db->tableExist(secondTable)) {
+      std::cout << "table " << secondTable << " is not exist" << std::endl;
+      return 1;
+    }
+
+    auto table1 = db->getTable(firstTable);
+    auto table2 = db->getTable(secondTable);
+
+    std::vector<SqlOutput::ColDefinition> outputCols;
+    auto list = *sel->selectList;
+    if (list[0]->type == hsql::kExprStar) {
+      for (size_t i = 0; i < table1->columns().size(); i++) {
+        outputCols.push_back({table1->columns()[i].column_name, i,
+                              table1->columns()[i].data_type.type});
+      }
+      int offset = table1->columns().size();
+      for (size_t i = 0; i < table2->columns().size(); i++) {
+        outputCols.push_back({table2->columns()[i].column_name, i + offset,
+                              table2->columns()[i].data_type.type});
+      }
+    } else {
+      for (const auto &s : list) {
+        if (s->table == firstTable) {
+          auto colIndex = std::find_if(
+              table1->columns().begin(), table1->columns().end(),
+              [&](const Column &c) { return c.column_name == s->name; });
+          if (colIndex == table1->columns().end()) {
+            std::cout << "column " << s->name << " is not exist" << std::endl;
+            return 1;
+          }
+          size_t index = std::distance(table1->columns().begin(), colIndex);
+          outputCols.push_back({s->name, index, colIndex->data_type.type});
+        } else {
+          int offset = table1->columns().size();
+          auto colIndex = std::find_if(
+              table2->columns().begin(), table2->columns().end(),
+              [&](const Column &c) { return c.column_name == s->name; });
+          if (colIndex == table2->columns().end()) {
+            std::cout << "column " << s->name << " is not exist" << std::endl;
+            return 1;
+          }
+          size_t index = std::distance(table2->columns().begin(), colIndex);
+          outputCols.push_back(
+              {s->name, index + offset, colIndex->data_type.type});
+        }
+      }
+    }
+
+    // test
+    // for (const auto &col : outputCols) {
+    //   std::cout << col.name << " " << col.rowIndex << " " << col.type
+    //             << std::endl;
+    // }
+
+    SqlOutput output(outputCols);
+    output.outTitle();
+    
+    auto join = new TableJoinExecutor(db, sel->whereClause);
+    join->next([&](RowReader *reader) { output.output(reader); });
+    return 0;
   }
 
   if (fromTable.size() == 1) {
@@ -195,6 +263,7 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
     delete executors[0];
     return 0;
   }
+
   std::cout << "-----------------" << std::endl;
   std::cout << "Select Done" << std::endl;
   return 0;
@@ -204,7 +273,7 @@ InsertRunner::InsertRunner(DataBase *db) : db(db) {}
 
 int InsertRunner::execute(const hsql::SQLStatement *stm) {
   auto sel = static_cast<const hsql::InsertStatement *>(stm);
-  auto tableName = sel->tableName;
+  auto tableName = sel->tableName; // 得到表名
   if (!db->tableExist(tableName)) {
     std::cout << "table " << tableName << " is not exist" << std::endl;
     return 1;

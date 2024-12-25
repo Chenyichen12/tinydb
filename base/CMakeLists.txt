@@ -20,6 +20,8 @@ executor/limitexecutor.h
 executor/limitexecutor.cpp
 executor/orderexecutor.h
 executor/orderexecutor.cpp
+executor/tablejoinexector.h
+executor/tablejoinexector.cpp
 )
 
 target_include_directories(basedb PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
