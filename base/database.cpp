@@ -196,6 +196,29 @@ int DataBase::insertValue(const std::string &table_name,
   return 3;
 }
 
+int DataBase::insertValue(const std::string &table_name, void *primary_key,
+                          void *value) {
+  Table *target_table = nullptr;
+  for (auto t : db_tables) {
+    if (t->name() == table_name) {
+      target_table = t;
+      break;
+    }
+  }
+
+  if (target_table == nullptr) {
+    return 1;
+  }
+
+  auto res = target_table->insertValue(primary_key, value,
+                                       target_table->entrySize());
+  if (res == 1) {
+    return 0;
+  }
+
+  return 3;
+}
+
 int DataBase::getValue(
     const std::string &table_name,
     const std::function<void(RowReader *reader)> &callback) const {

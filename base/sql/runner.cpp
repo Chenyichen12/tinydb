@@ -8,6 +8,7 @@
 #include "sql/DeleteStatement.h"
 #include "sql/InsertStatement.h"
 #include "sql/SelectStatement.h"
+#include "sql/UpdateStatement.h"
 #include <algorithm>
 #include <codecvt>
 #include <cstring>
@@ -153,7 +154,7 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
 
     SqlOutput output(outputCols);
     output.outTitle();
-    
+
     auto join = new TableJoinExecutor(db, sel->whereClause);
     join->next([&](RowReader *reader) { output.output(reader); });
     return 0;
@@ -349,27 +350,27 @@ int DeleteRunner::execute(const hsql::SQLStatement *stm) {
   auto index = table->primaryKeyIndex();
   const auto &col = table->columns()[table->primaryKeyIndex()];
   auto type = col.data_type.type;
-  std::vector<std::unique_ptr<char *>> prepareDeleteItem;
+  std::vector<std::unique_ptr<char[]>> prepareDeleteItem;
   filterexecutor->next([&](RowReader *reader) {
-    auto val = std::make_unique<char *>(nullptr);
+    std::unique_ptr<char[]> val;
 
     switch (type) {
     case DataType::INT32: {
-      val = std::make_unique<char *>(new char[4]);
+      val = std::make_unique<char[]>(4);
       auto v = reader->readInt32(index);
-      memcpy(*val, &v, 4);
+      memcpy(val.get(), &v, 4);
       break;
     }
     case DataType::INT64: {
-      val = std::make_unique<char *>(new char[8]);
+      val = std::make_unique<char[]>(8);
       auto v = reader->readInt64(index);
-      memcpy(*val, &v, 8);
+      memcpy(val.get(), &v, 8);
       break;
     }
     case DataType::STRING: {
       auto v = reader->readString(index);
-      val = std::make_unique<char *>(new char[v.size()]);
-      memcpy(*val, v.c_str(), v.size());
+      val = std::make_unique<char[]>(v.size());
+      memcpy(val.get(), v.c_str(), v.size());
       break;
     }
     default:
@@ -382,7 +383,7 @@ int DeleteRunner::execute(const hsql::SQLStatement *stm) {
 
   bool isSuccess = true;
   for (auto &val : prepareDeleteItem) {
-    auto result = table->deleteValue(*val);
+    auto result = table->deleteValue(val.get());
     if (result == 0) {
       std::cout << "can't find the value to delete" << std::endl;
       isSuccess = false;
@@ -455,5 +456,141 @@ int CreateTableRunner::execute(const hsql::SQLStatement *stm) {
   db->saveConfig();
   std::cout << "create table success" << std::endl;
 
+  return 0;
+}
+
+UpdateRunner::UpdateRunner(DataBase *db) : db(db) {}
+
+std::pair<int, int>
+UpdateRunner::memberOffset(const std::vector<Column> &columnsDefination,
+                           const std::string &colName) {
+  int offset = 0;
+  int length = 0;
+  for (int i = 0; i < columnsDefination.size(); i++) {
+    if (columnsDefination[i].column_name == colName) {
+      length = columnsDefination[i].data_type.size;
+      break;
+    }
+    offset += columnsDefination[i].data_type.size;
+  }
+
+  return {offset, length};
+}
+
+void UpdateRunner::updateBuf(char *buf, int offset, int length, const char *val,
+                             int valLength) {
+  memcpy(buf + offset, val, valLength);
+}
+int UpdateRunner::execute(const hsql::SQLStatement *stm) {
+  const auto sel = static_cast<const hsql::UpdateStatement *>(stm);
+  const auto tableRef = sel->table;
+
+  if (!db->tableExist(tableRef->name)) {
+    std::cout << "table " << tableRef->name << " is not exist" << std::endl;
+    return 1;
+  }
+
+  auto table = db->getTable(tableRef->name);
+  // check column
+  for (const auto &update : *sel->updates) {
+    // column
+    if (!table->hasColumn(update->column)) {
+      std::cout << "column " << update->column << " is not exist" << std::endl;
+      return 1;
+    }
+  }
+  std::unique_ptr<Executor> exec;
+  try {
+    if (sel->where == nullptr) {
+      exec = std::make_unique<SeqExecutor>(db, table->name());
+    } else {
+      exec = std::make_unique<FilterExecutor>(db, sel->where);
+    }
+  } catch (...) {
+    std::cout << "where clause error" << std::endl;
+    return 1;
+  }
+
+  std::vector<std::unique_ptr<char[]>> prepareChangedValue;
+
+  exec->next([&](RowReader *reader) {
+    auto buf = std::make_unique<char[]>(reader->byteSize());
+    reader->readByte(buf.get(), reader->byteSize());
+    prepareChangedValue.push_back(std::move(buf));
+  });
+
+  for (int i = 0; i < prepareChangedValue.size(); i++) {
+    for (const auto &update : *sel->updates) {
+      auto info = memberOffset(table->columns(), update->column);
+      auto changeVal = std::make_unique<char[]>(info.second);
+      switch (update->value->type) {
+      case hsql::kExprLiteralString: {
+        auto str = update->value->getName();
+        auto converter = std::wstring_convert<std::codecvt_utf8<wchar_t>>();
+        auto wstr = converter.from_bytes(str);
+        memcpy(changeVal.get(), wstr.c_str(), info.second);
+        break;
+      }
+      case hsql::kExprLiteralInt: {
+        auto val = update->value->ival;
+        memcpy(changeVal.get(), &val, info.second);
+        break;
+      }
+      default: {
+        std::cout << "not support" << std::endl;
+        return 1;
+      }
+      }
+
+      updateBuf(prepareChangedValue[i].get(), info.first, info.second,
+                changeVal.get(), info.second);
+    }
+  }
+
+  // test change
+
+  // auto reader = new RowReader(table->columns(),
+  // prepareChangedValue[0].get()); std::vector<SqlOutput::ColDefinition>
+  // outputCols; for (size_t i = 0; i < table->columns().size(); i++) {
+  //   const auto &col = table->columns()[i];
+  //   outputCols.push_back({col.column_name, i, col.data_type.type});
+  // }
+  // SqlOutput output(outputCols);
+  // output.outTitle();
+  // output.output(reader);
+
+  // delete old
+  auto pKeyIndex = table->primaryKeyIndex();
+  auto pKeyName = table->columns()[pKeyIndex].column_name;
+  auto keyInfo = memberOffset(table->columns(), pKeyName);
+  for (int i = 0; i < prepareChangedValue.size(); i++) {
+    auto pKeyVal = std::unique_ptr<char[]>(new char[keyInfo.second]);
+    memcpy(pKeyVal.get(), prepareChangedValue[i].get() + keyInfo.first,
+           keyInfo.second);
+    auto result = table->deleteValue(pKeyVal.get());
+    if (result == 0) {
+      std::cout << "can't find the value to delete" << std::endl;
+    }
+    if (result == -1) {
+      std::cout << "delete failed" << std::endl;
+      return 1;
+    }
+  }
+
+  // insert new
+  for (int i = 0; i < prepareChangedValue.size(); i++) {
+    auto pKeyVal = std::unique_ptr<char[]>(new char[keyInfo.second]);
+    memcpy(pKeyVal.get(), prepareChangedValue[i].get() + keyInfo.first,
+           keyInfo.second);
+    auto result = db->insertValue(table->name(), pKeyVal.get(),
+                                  prepareChangedValue[i].get());
+    if (result != 0) {
+      std::cout << "update failed" << std::endl;
+      return 1;
+    }
+  }
+  std::cout << "update done" << std::endl;
+  std::cout << "update " << prepareChangedValue.size() << " records"
+            << std::endl;
   return 0;
 }

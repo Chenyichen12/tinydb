@@ -1,5 +1,3 @@
-
-
 create table student (id long, name varchar(255), age int, sex int);
 
 select * from student;
@@ -17,5 +15,7 @@ select * from student limit 1;
 select * from student order by student.id;
 
 select * from student order by student.name;
+
+update student set name='test' where student.age=18;
 
 delete from student where student.age = 18;

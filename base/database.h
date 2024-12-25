@@ -104,6 +104,7 @@ public:
    */
   int insertValue(const std::string &table_name,
                   const std::function<void(RowBuilder *r)> &callback);
+  int insertValue(const std::string& table_name, void* primary_key, void* value);
 
   /**
    * @brief Get the Value object

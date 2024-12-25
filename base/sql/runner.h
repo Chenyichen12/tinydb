@@ -70,3 +70,17 @@ public:
   CreateTableRunner(DataBase *db);
   int execute(const hsql::SQLStatement *stm) override;
 };
+
+class UpdateRunner : public SqlRunner {
+  DataBase *db;
+
+  static std::pair<int, int>
+  memberOffset(const std::vector<Column> &columnsDefination,
+         const std::string &colName);
+
+  static void updateBuf(char* buf, int offset, int length, const char* val, int valLength);
+
+public:
+  UpdateRunner(DataBase *db);
+  int execute(const hsql::SQLStatement *stm) override;
+};
