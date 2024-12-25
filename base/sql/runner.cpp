@@ -193,7 +193,7 @@ int SelectRunner::execute(const hsql::SQLStatement *stm) {
       if (sel->limit->offset != nullptr) {
         offset = sel->limit->offset->ival;
       }
-      auto limitexecutor = new LimitExecutor(offset, limit);
+      auto limitexecutor = new LimitExecutor(limit, offset);
       executors.push_back(limitexecutor);
     }
     if (sel->order != nullptr) {
